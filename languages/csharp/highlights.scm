@@ -36,10 +36,12 @@
   (verbatim_string_literal)
   (interpolated_string_text)
   (interpolated_verbatim_string_text)
+  (raw_string_literal)
   "\""
   "$\""
   "@$\""
   "$@\""
+  "\"\"\""
  ] @string
 
 [
