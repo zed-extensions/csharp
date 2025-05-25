@@ -1,18 +1,23 @@
 mod language_servers;
 
+use language_servers::Roslyn;
 use zed_extension_api::{self as zed, Result};
 
 use crate::language_servers::Omnisharp;
 
 struct CsharpExtension {
     omnisharp: Option<Omnisharp>,
+    roslyn: Option<Roslyn>,
 }
 
 impl CsharpExtension {}
 
 impl zed::Extension for CsharpExtension {
     fn new() -> Self {
-        Self { omnisharp: None }
+        Self {
+            omnisharp: None,
+            roslyn: None,
+        }
     }
 
     fn language_server_command(
@@ -30,6 +35,11 @@ impl zed::Extension for CsharpExtension {
                     args: omnisharp_binary.args.unwrap_or_else(|| vec!["-lsp".into()]),
                     env: Default::default(),
                 })
+            }
+            Roslyn::LANGUAGE_SERVER_ID => {
+                // Add Roslyn Server
+                let roslyn = self.roslyn.get_or_insert_with(Roslyn::new);
+                roslyn.language_server_cmd(language_server_id, worktree)
             }
             language_server_id => Err(format!("unknown language server: {language_server_id}")),
         }
