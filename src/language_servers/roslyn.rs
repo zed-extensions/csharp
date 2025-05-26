@@ -47,7 +47,6 @@ impl Roslyn {
             }
         }
 
-        //Not found locally getting remotely
         zed::set_language_server_installation_status(
             language_server_id,
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
