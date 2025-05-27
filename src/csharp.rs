@@ -44,6 +44,19 @@ impl zed::Extension for CsharpExtension {
             language_server_id => Err(format!("unknown language server: {language_server_id}")),
         }
     }
+
+    fn language_server_workspace_configuration(
+        &mut self,
+        language_server_id: &zed::LanguageServerId,
+        worktree: &zed::Worktree,
+    ) -> Result<Option<zed::serde_json::Value>> {
+        if language_server_id.as_ref() == Roslyn::LANGUAGE_SERVER_ID {
+            if let Some(roslyn) = self.roslyn.as_mut() {
+                return roslyn.configuration_options(worktree);
+            }
+        }
+        Ok(None)
+    }
 }
 
 zed::register_extension!(CsharpExtension);

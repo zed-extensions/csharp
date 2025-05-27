@@ -1,6 +1,8 @@
 use std::fs;
 
-use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
+use zed_extension_api::{
+    self as zed, serde_json::Map, settings::LspSettings, LanguageServerId, Result,
+};
 
 const REPO: &str = "SofusA/csharp-language-server";
 
@@ -121,5 +123,49 @@ impl Roslyn {
             args: binary_args.unwrap_or_default(),
             env: Default::default(),
         })
+    }
+
+    pub fn configuration_options(
+        &self,
+        worktree: &zed::Worktree,
+    ) -> Result<Option<zed::serde_json::Value>> {
+        let settings = LspSettings::for_worktree("roslyn", worktree)
+            .ok()
+            .and_then(|lsp_settings| lsp_settings.settings);
+
+        if let Some(user_settings) = settings {
+            let transformed_settings = self.transform_settings_for_roslyn(user_settings)?;
+            return Ok(Some(transformed_settings));
+        }
+
+        Ok(None)
+    }
+
+    fn transform_settings_for_roslyn(
+        &self,
+        settings: zed::serde_json::Value,
+    ) -> Result<zed::serde_json::Value> {
+        let mut roslyn_config = Map::new();
+
+        if let zed::serde_json::Value::Object(settings_map) = settings {
+            for (key, value) in &settings_map {
+                if key.contains('|') {
+                    // This is already in the language|category format
+                    if let zed::serde_json::Value::Object(nested_settings) = value {
+                        for (nested_key, nested_value) in nested_settings {
+                            // The key already contains the proper format, just add the setting
+                            let roslyn_key = format!("{}.{}", key, nested_key);
+                            roslyn_config.insert(roslyn_key, nested_value.clone());
+                        }
+                    }
+                }
+                // Handle direct roslyn-format settings (fallback for any other format)
+                else if key.contains('.') {
+                    roslyn_config.insert(key.clone(), value.clone());
+                }
+            }
+        }
+
+        Ok(zed::serde_json::Value::Object(roslyn_config))
     }
 }
