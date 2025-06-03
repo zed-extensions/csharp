@@ -66,7 +66,7 @@ impl Roslyn {
             "csharp-language-server-{arch}-{os}.{extension}",
             os = match platform {
                 zed::Os::Mac => "apple-darwin",
-                zed::Os::Linux => "unknown-linux",
+                zed::Os::Linux => "unknown-linux-gnu",
                 zed::Os::Windows => "pc-windows-msvc",
             },
             arch = match arch {
