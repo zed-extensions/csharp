@@ -136,12 +136,7 @@ impl Roslyn {
             .ok()
             .and_then(|lsp_settings| lsp_settings.settings);
 
-        if let Some(user_settings) = settings {
-            let transformed_settings = self.transform_settings_for_roslyn(user_settings);
-            return Ok(Some(transformed_settings));
-        }
-
-        Ok(None)
+        Ok(settings.map(|user_settings| self.transform_settings_for_user(user_settings))
     }
 
     fn transform_settings_for_roslyn(
