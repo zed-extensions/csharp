@@ -65,7 +65,7 @@ impl Roslyn {
             zed::Architecture::Aarch64 => "aarch64",
             zed::Architecture::X8664 => "x86_64",
             zed::Architecture::X86 => {
-                return Err(format!("Unsupported processor architecture: {:?}", arch));
+                return Err(format!("The roslyn lsp server wrapper does not support the following processor architecture: {:?}", arch));
             }
         };
 
@@ -136,7 +136,7 @@ impl Roslyn {
             .ok()
             .and_then(|lsp_settings| lsp_settings.settings);
 
-        Ok(settings.map(|user_settings| self.transform_settings_for_user(user_settings))
+        Ok(settings.map(|user_settings| self.transform_settings_for_user(user_settings)))
     }
 
     fn transform_settings_for_roslyn(
