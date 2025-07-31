@@ -24,7 +24,7 @@ impl Roslyn {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
-        let binary_settings = LspSettings::for_worktree("roslyn", worktree)
+        let binary_settings = LspSettings::for_worktree(Self::LANGUAGE_SERVER_ID, worktree)
             .ok()
             .and_then(|lsp_settings| lsp_settings.binary);
         let binary_args = binary_settings
@@ -47,7 +47,6 @@ impl Roslyn {
             });
         }
 
-
         zed::set_language_server_installation_status(
             language_server_id,
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
@@ -61,6 +60,15 @@ impl Roslyn {
         )?;
 
         let (platform, arch) = zed::current_platform();
+
+        let arch_str = match arch {
+            zed::Architecture::Aarch64 => "aarch64",
+            zed::Architecture::X8664 => "x86_64",
+            zed::Architecture::X86 => {
+                return Err(format!("Unsupported processor architecture: {:?}", arch));
+            }
+        };
+
         let asset_name = format!(
             "csharp-language-server-{arch}-{os}.{extension}",
             os = match platform {
@@ -68,11 +76,7 @@ impl Roslyn {
                 zed::Os::Linux => "unknown-linux-gnu",
                 zed::Os::Windows => "pc-windows-msvc",
             },
-            arch = match arch {
-                zed::Architecture::Aarch64 => "aarch64",
-                zed::Architecture::X8664 => "x86_64",
-                zed::Architecture::X86 => "unsupported",
-            },
+            arch = arch_str,
             extension = match platform {
                 zed::Os::Mac | zed::Os::Linux => "tar.gz",
                 zed::Os::Windows => "zip",
@@ -128,12 +132,12 @@ impl Roslyn {
         &self,
         worktree: &zed::Worktree,
     ) -> Result<Option<zed::serde_json::Value>> {
-        let settings = LspSettings::for_worktree("roslyn", worktree)
+        let settings = LspSettings::for_worktree(Self::LANGUAGE_SERVER_ID, worktree)
             .ok()
             .and_then(|lsp_settings| lsp_settings.settings);
 
         if let Some(user_settings) = settings {
-            let transformed_settings = self.transform_settings_for_roslyn(user_settings)?;
+            let transformed_settings = self.transform_settings_for_roslyn(user_settings);
             return Ok(Some(transformed_settings));
         }
 
@@ -143,7 +147,7 @@ impl Roslyn {
     fn transform_settings_for_roslyn(
         &self,
         settings: zed::serde_json::Value,
-    ) -> Result<zed::serde_json::Value> {
+    ) -> zed::serde_json::Value {
         let mut roslyn_config = Map::new();
 
         if let zed::serde_json::Value::Object(settings_map) = settings {
@@ -165,6 +169,6 @@ impl Roslyn {
             }
         }
 
-        Ok(zed::serde_json::Value::Object(roslyn_config))
+        zed::serde_json::Value::Object(roslyn_config)
     }
 }
