@@ -136,7 +136,7 @@ impl Roslyn {
             .ok()
             .and_then(|lsp_settings| lsp_settings.settings);
 
-        Ok(settings.map(|user_settings| self.transform_settings_for_user(user_settings)))
+        Ok(settings.map(|user_settings| self.transform_settings_for_roslyn(user_settings)))
     }
 
     fn transform_settings_for_roslyn(
