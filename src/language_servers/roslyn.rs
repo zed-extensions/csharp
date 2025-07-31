@@ -31,7 +31,15 @@ impl Roslyn {
             .as_ref()
             .and_then(|binary_settings| binary_settings.arguments.clone());
 
-        if let Some(path) = binary_settings.and_then(|binary_settings| binary_settings.path) {
+        if let Some(path) = binary_settings
+            .and_then(|binary_settings| binary_settings.path)
+            .or_else(|| {
+                self.cached_binary_path
+                    .as_ref()
+                    .filter(|path| fs::metadata(path).map_or(false, |stat| stat.is_file()))
+                    .cloned()
+            })
+        {
             return Ok(zed::Command {
                 command: path,
                 args: binary_args.unwrap_or_default(),
@@ -39,15 +47,6 @@ impl Roslyn {
             });
         }
 
-        if let Some(path) = &self.cached_binary_path {
-            if fs::metadata(path).map_or(false, |stat| stat.is_file()) {
-                return Ok(zed::Command {
-                    command: path.clone(),
-                    args: binary_args.unwrap_or_default(),
-                    env: Default::default(),
-                });
-            }
-        }
 
         zed::set_language_server_installation_status(
             language_server_id,
