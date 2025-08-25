@@ -86,7 +86,7 @@ impl CsharpExtension {
         let version_dir = format!("omnisharp-{}", release.version);
         let binary_path = match platform {
             zed::Os::Windows => format!("{version_dir}/OmniSharp.exe"),
-            _ => format!("{version_dir}/omnisharp"),
+            _ => format!("{version_dir}/OmniSharp"),
         };
 
         if !fs::metadata(&binary_path).map_or(false, |stat| stat.is_file()) {
