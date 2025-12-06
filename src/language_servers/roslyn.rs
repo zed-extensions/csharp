@@ -129,20 +129,16 @@ impl Roslyn {
     }
 
     pub fn configuration_options(
-        &self,
         worktree: &zed::Worktree,
     ) -> Result<Option<zed::serde_json::Value>> {
         let settings = LspSettings::for_worktree(Self::LANGUAGE_SERVER_ID, worktree)
             .ok()
             .and_then(|lsp_settings| lsp_settings.settings);
 
-        Ok(settings.map(|user_settings| self.transform_settings_for_roslyn(user_settings)))
+        Ok(settings.map(|user_settings| Self::transform_settings_for_roslyn(user_settings)))
     }
 
-    fn transform_settings_for_roslyn(
-        &self,
-        settings: zed::serde_json::Value,
-    ) -> zed::serde_json::Value {
+    fn transform_settings_for_roslyn(settings: zed::serde_json::Value) -> zed::serde_json::Value {
         let mut roslyn_config = Map::new();
 
         if let zed::serde_json::Value::Object(settings_map) = settings {

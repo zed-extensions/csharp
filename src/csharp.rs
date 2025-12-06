@@ -51,9 +51,7 @@ impl zed::Extension for CsharpExtension {
         worktree: &zed::Worktree,
     ) -> Result<Option<zed::serde_json::Value>> {
         if language_server_id.as_ref() == Roslyn::LANGUAGE_SERVER_ID {
-            if let Some(roslyn) = self.roslyn.as_mut() {
-                return roslyn.configuration_options(worktree);
-            }
+            return Roslyn::configuration_options(worktree);
         }
         Ok(None)
     }
