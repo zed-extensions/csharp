@@ -1,8 +1,6 @@
 use std::fs;
 
-use zed_extension_api::{
-    self as zed, serde_json::Map, settings::LspSettings, LanguageServerId, Result,
-};
+use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
 
 const REPO: &str = "SofusA/csharp-language-server";
 
@@ -139,27 +137,42 @@ impl Roslyn {
     }
 
     fn transform_settings_for_roslyn(settings: zed::serde_json::Value) -> zed::serde_json::Value {
-        let mut roslyn_config = Map::new();
+        let mut roslyn_config = zed::serde_json::json!({
+            // These code lenses rely show up as "Unknown Command" in Zed and don't do anything when clicked. Disable them by default.
+            "csharp|code_lens.dotnet_enable_references_code_lens": false,
+            "csharp|code_lens.dotnet_enable_tests_code_lens": false,
+            // Enable inlay hints in the language server by default.
+            // This way, enabling inlay hints in Zed will cause inlay hints to show up in C# without extra configuration.
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_object_creation": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_variable_types": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_lambda_parameter_types": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_types": true,
+            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_indexer_parameters": true,
+            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_literal_parameters": true,
+            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_object_creation_parameters": true,
+            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_other_parameters": true,
+            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_parameters": true
+        });
 
+        let config_map = roslyn_config.as_object_mut().unwrap();
         if let zed::serde_json::Value::Object(settings_map) = settings {
-            for (key, value) in &settings_map {
+            for (key, value) in settings_map {
                 if key.contains('|') {
                     // This is already in the language|category format
                     if let zed::serde_json::Value::Object(nested_settings) = value {
                         for (nested_key, nested_value) in nested_settings {
                             // The key already contains the proper format, just add the setting
-                            let roslyn_key = format!("{}.{}", key, nested_key);
-                            roslyn_config.insert(roslyn_key, nested_value.clone());
+                            config_map.insert(format!("{key}.{nested_key}"), nested_value);
                         }
                     }
                 }
                 // Handle direct roslyn-format settings (fallback for any other format)
                 else if key.contains('.') {
-                    roslyn_config.insert(key.clone(), value.clone());
+                    config_map.insert(key.clone(), value.clone());
                 }
             }
         }
 
-        zed::serde_json::Value::Object(roslyn_config)
+        roslyn_config
     }
 }
