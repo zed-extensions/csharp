@@ -34,7 +34,7 @@ impl Roslyn {
             .or_else(|| {
                 self.cached_binary_path
                     .as_ref()
-                    .filter(|path| fs::metadata(path).map_or(false, |stat| stat.is_file()))
+                    .filter(|path| fs::metadata(path).is_ok_and(|stat| stat.is_file()))
                     .cloned()
             })
         {
@@ -90,7 +90,7 @@ impl Roslyn {
         let version_dir = format!("roslyn-{}", release.version);
         let binary_path = format!("{version_dir}/csharp-language-server");
 
-        if !fs::metadata(&binary_path).map_or(false, |stat| stat.is_file()) {
+        if !fs::metadata(&binary_path).is_ok_and(|stat| stat.is_file()) {
             zed::set_language_server_installation_status(
                 language_server_id,
                 &zed::LanguageServerInstallationStatus::Downloading,
@@ -133,7 +133,7 @@ impl Roslyn {
             .ok()
             .and_then(|lsp_settings| lsp_settings.settings);
 
-        Ok(settings.map(|user_settings| Self::transform_settings_for_roslyn(user_settings)))
+        Ok(settings.map(Self::transform_settings_for_roslyn))
     }
 
     fn transform_settings_for_roslyn(settings: zed::serde_json::Value) -> zed::serde_json::Value {
