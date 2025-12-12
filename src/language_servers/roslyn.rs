@@ -114,6 +114,17 @@ impl Roslyn {
             zed::make_file_executable(&binary_path)?;
 
             util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
+
+            if let Ok(full_binary_path) = std::env::current_dir().map(|dir| dir.join(&binary_path))
+            {
+                // The `csharp-language-server` wrapper automatically downloads Roslyn on first launch,
+                // but we trigger `--download` here while the "Downloading roslyn" status is still visible.
+                // If this fails (e.g., if the exec capability is denied), ignore the error--Roslyn will
+                // be downloaded when the language server starts anyway.
+                _ = zed::Command::new(full_binary_path.to_string_lossy().as_ref())
+                    .arg("--download")
+                    .output();
+            }
         }
 
         self.cached_binary_path = Some(binary_path.clone());
