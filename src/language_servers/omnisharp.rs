@@ -1,6 +1,8 @@
 use std::fs;
 use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
 
+use crate::language_servers::util;
+
 pub struct Omnisharp {
     cached_binary_path: Option<String>,
 }
@@ -91,7 +93,7 @@ impl Omnisharp {
             .find(|asset| asset.name == asset_name)
             .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
 
-        let version_dir = format!("omnisharp-{}", release.version);
+        let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, release.version);
         let binary_path = match platform {
             zed::Os::Windows => format!("{version_dir}/OmniSharp.exe"),
             _ => format!("{version_dir}/OmniSharp"),
@@ -113,14 +115,7 @@ impl Omnisharp {
             )
             .map_err(|e| format!("failed to download file: {e}"))?;
 
-            let entries =
-                fs::read_dir(".").map_err(|e| format!("failed to list working directory {e}"))?;
-            for entry in entries {
-                let entry = entry.map_err(|e| format!("failed to load directory entry {e}"))?;
-                if entry.file_name().to_str() != Some(&version_dir) {
-                    fs::remove_dir_all(entry.path()).ok();
-                }
-            }
+            util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
         }
 
         self.cached_binary_path = Some(binary_path.clone());

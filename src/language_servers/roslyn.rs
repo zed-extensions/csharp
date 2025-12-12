@@ -2,6 +2,8 @@ use std::fs;
 
 use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
 
+use crate::language_servers::util;
+
 const REPO: &str = "SofusA/csharp-language-server";
 
 pub struct Roslyn {
@@ -87,8 +89,11 @@ impl Roslyn {
             .find(|asset| asset.name == asset_name)
             .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
 
-        let version_dir = format!("roslyn-{}", release.version);
-        let binary_path = format!("{version_dir}/csharp-language-server");
+        let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, release.version);
+        let binary_path = match platform {
+            zed::Os::Windows => format!("{version_dir}/csharp-language-server.exe"),
+            _ => format!("{version_dir}/csharp-language-server"),
+        };
 
         if !fs::metadata(&binary_path).is_ok_and(|stat| stat.is_file()) {
             zed::set_language_server_installation_status(
@@ -108,13 +113,17 @@ impl Roslyn {
 
             zed::make_file_executable(&binary_path)?;
 
-            let entries =
-                fs::read_dir(".").map_err(|e| format!("failed to list working directory {e}"))?;
-            for entry in entries {
-                let entry = entry.map_err(|e| format!("failed to load directory entry {e}"))?;
-                if entry.file_name().to_str() != Some(&version_dir) {
-                    fs::remove_dir_all(entry.path()).ok();
-                }
+            util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
+
+            if let Ok(full_binary_path) = std::env::current_dir().map(|dir| dir.join(&binary_path))
+            {
+                // The `csharp-language-server` wrapper automatically downloads Roslyn on first launch,
+                // but we trigger `--download` here while the "Downloading roslyn" status is still visible.
+                // If this fails (e.g., if the exec capability is denied), ignore the error--Roslyn will
+                // be downloaded when the language server starts anyway.
+                _ = zed::Command::new(full_binary_path.to_string_lossy().as_ref())
+                    .arg("--download")
+                    .output();
             }
         }
 
@@ -138,20 +147,21 @@ impl Roslyn {
 
     fn transform_settings_for_roslyn(settings: zed::serde_json::Value) -> zed::serde_json::Value {
         let mut roslyn_config = zed::serde_json::json!({
-            // These code lenses rely show up as "Unknown Command" in Zed and don't do anything when clicked. Disable them by default.
+            // These code lenses show up as "Unknown Command" in Zed and don't do anything when clicked. Disable them by default.
             "csharp|code_lens.dotnet_enable_references_code_lens": false,
             "csharp|code_lens.dotnet_enable_tests_code_lens": false,
             // Enable inlay hints in the language server by default.
             // This way, enabling inlay hints in Zed will cause inlay hints to show up in C# without extra configuration.
-            "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_object_creation": true,
-            "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_variable_types": true,
-            "csharp|inlay_hints.csharp_enable_inlay_hints_for_lambda_parameter_types": true,
-            "csharp|inlay_hints.csharp_enable_inlay_hints_for_types": true,
-            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_indexer_parameters": true,
+            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_parameters": true,
             "csharp|inlay_hints.dotnet_enable_inlay_hints_for_literal_parameters": true,
+            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_indexer_parameters": true,
             "csharp|inlay_hints.dotnet_enable_inlay_hints_for_object_creation_parameters": true,
             "csharp|inlay_hints.dotnet_enable_inlay_hints_for_other_parameters": true,
-            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_parameters": true
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_types": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_variable_types": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_lambda_parameter_types": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_object_creation": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_collection_expressions": true,
         });
 
         let config_map = roslyn_config.as_object_mut().unwrap();
