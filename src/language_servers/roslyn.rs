@@ -136,20 +136,21 @@ impl Roslyn {
 
     fn transform_settings_for_roslyn(settings: zed::serde_json::Value) -> zed::serde_json::Value {
         let mut roslyn_config = zed::serde_json::json!({
-            // These code lenses rely show up as "Unknown Command" in Zed and don't do anything when clicked. Disable them by default.
+            // These code lenses show up as "Unknown Command" in Zed and don't do anything when clicked. Disable them by default.
             "csharp|code_lens.dotnet_enable_references_code_lens": false,
             "csharp|code_lens.dotnet_enable_tests_code_lens": false,
             // Enable inlay hints in the language server by default.
             // This way, enabling inlay hints in Zed will cause inlay hints to show up in C# without extra configuration.
-            "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_object_creation": true,
-            "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_variable_types": true,
-            "csharp|inlay_hints.csharp_enable_inlay_hints_for_lambda_parameter_types": true,
-            "csharp|inlay_hints.csharp_enable_inlay_hints_for_types": true,
-            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_indexer_parameters": true,
+            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_parameters": true,
             "csharp|inlay_hints.dotnet_enable_inlay_hints_for_literal_parameters": true,
+            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_indexer_parameters": true,
             "csharp|inlay_hints.dotnet_enable_inlay_hints_for_object_creation_parameters": true,
             "csharp|inlay_hints.dotnet_enable_inlay_hints_for_other_parameters": true,
-            "csharp|inlay_hints.dotnet_enable_inlay_hints_for_parameters": true
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_types": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_variable_types": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_lambda_parameter_types": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_object_creation": true,
+            "csharp|inlay_hints.csharp_enable_inlay_hints_for_collection_expressions": true,
         });
 
         let config_map = roslyn_config.as_object_mut().unwrap();
