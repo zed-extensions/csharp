@@ -90,7 +90,10 @@ impl Roslyn {
             .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
 
         let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, release.version);
-        let binary_path = format!("{version_dir}/csharp-language-server");
+        let binary_path = match platform {
+            zed::Os::Windows => format!("{version_dir}/csharp-language-server.exe"),
+            _ => format!("{version_dir}/csharp-language-server"),
+        };
 
         if !fs::metadata(&binary_path).is_ok_and(|stat| stat.is_file()) {
             zed::set_language_server_installation_status(
