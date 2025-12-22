@@ -19,7 +19,7 @@ language = "CSharp"
 
 [grammars.c_sharp]
 repository = "https://github.com/tree-sitter/tree-sitter-c-sharp"
-commit = "dd5e59721a5f8dae34604060833902b882023aaf"
+commit = "485f0bae0274ac9114797fc10db6f7034e4086e3"
 
 # Used to run `csharp-language-server --download` after an update
 [[capabilities]]
