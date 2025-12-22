@@ -1,0 +1,127 @@
+use std::fs;
+use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
+
+use crate::language_servers::util;
+
+pub struct Omnisharp {
+    cached_binary_path: Option<String>,
+}
+
+pub struct OmnisharpBinary {
+    pub path: String,
+    pub args: Option<Vec<String>>,
+}
+
+impl Omnisharp {
+    pub const LANGUAGE_SERVER_ID: &'static str = "omnisharp";
+
+    pub fn new() -> Self {
+        Self {
+            cached_binary_path: None,
+        }
+    }
+
+    pub fn language_server_binary(
+        &mut self,
+        language_server_id: &LanguageServerId,
+        worktree: &zed::Worktree,
+    ) -> Result<OmnisharpBinary> {
+        let binary_settings = LspSettings::for_worktree("omnisharp", worktree)
+            .ok()
+            .and_then(|lsp_settings| lsp_settings.binary);
+        let binary_args = binary_settings
+            .as_ref()
+            .and_then(|binary_settings| binary_settings.arguments.clone());
+
+        if let Some(path) = binary_settings.and_then(|binary_settings| binary_settings.path) {
+            return Ok(OmnisharpBinary {
+                path,
+                args: binary_args,
+            });
+        }
+
+        if let Some(path) = worktree.which("OmniSharp") {
+            return Ok(OmnisharpBinary {
+                path,
+                args: binary_args,
+            });
+        }
+
+        if let Some(path) = &self.cached_binary_path {
+            if fs::metadata(path).is_ok_and(|stat| stat.is_file()) {
+                return Ok(OmnisharpBinary {
+                    path: path.clone(),
+                    args: binary_args,
+                });
+            }
+        }
+
+        zed::set_language_server_installation_status(
+            language_server_id,
+            &zed::LanguageServerInstallationStatus::CheckingForUpdate,
+        );
+        let release = zed::latest_github_release(
+            "OmniSharp/omnisharp-roslyn",
+            zed::GithubReleaseOptions {
+                require_assets: true,
+                pre_release: false,
+            },
+        )?;
+
+        let (platform, arch) = zed::current_platform();
+        let asset_name = format!(
+            "omnisharp-{os}-{arch}-net6.0.{extension}",
+            os = match platform {
+                zed::Os::Mac => "osx",
+                zed::Os::Linux => "linux",
+                zed::Os::Windows => "win",
+            },
+            arch = match arch {
+                zed::Architecture::Aarch64 => "arm64",
+                zed::Architecture::X86 => "x86",
+                zed::Architecture::X8664 => "x64",
+            },
+            extension = match platform {
+                zed::Os::Mac | zed::Os::Linux => "tar.gz",
+                zed::Os::Windows => "zip",
+            }
+        );
+
+        let asset = release
+            .assets
+            .iter()
+            .find(|asset| asset.name == asset_name)
+            .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
+
+        let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, release.version);
+        let binary_path = match platform {
+            zed::Os::Windows => format!("{version_dir}/OmniSharp.exe"),
+            _ => format!("{version_dir}/OmniSharp"),
+        };
+
+        if !fs::metadata(&binary_path).is_ok_and(|stat| stat.is_file()) {
+            zed::set_language_server_installation_status(
+                language_server_id,
+                &zed::LanguageServerInstallationStatus::Downloading,
+            );
+
+            zed::download_file(
+                &asset.download_url,
+                &version_dir,
+                match platform {
+                    zed::Os::Mac | zed::Os::Linux => zed::DownloadedFileType::GzipTar,
+                    zed::Os::Windows => zed::DownloadedFileType::Zip,
+                },
+            )
+            .map_err(|e| format!("failed to download file: {e}"))?;
+
+            util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
+        }
+
+        self.cached_binary_path = Some(binary_path.clone());
+        Ok(OmnisharpBinary {
+            path: binary_path,
+            args: binary_args,
+        })
+    }
+}
