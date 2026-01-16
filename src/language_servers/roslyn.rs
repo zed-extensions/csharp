@@ -8,6 +8,7 @@ const REPO: &str = "SofusA/csharp-language-server";
 
 pub struct Roslyn {
     cached_binary_path: Option<String>,
+    cached_config: Option<zed::serde_json::Value>,
 }
 
 impl Roslyn {
@@ -16,6 +17,7 @@ impl Roslyn {
     pub fn new() -> Self {
         Roslyn {
             cached_binary_path: None,
+            cached_config: None,
         }
     }
 
@@ -136,20 +138,45 @@ impl Roslyn {
     }
 
     pub fn configuration_options(
+        &mut self,
         worktree: &zed::Worktree,
     ) -> Result<Option<zed::serde_json::Value>> {
+        // Return cached config if available to avoid repeated allocations
+        if let Some(ref config) = self.cached_config {
+            return Ok(Some(config.clone()));
+        }
+
         let settings = LspSettings::for_worktree(Self::LANGUAGE_SERVER_ID, worktree)
             .ok()
             .and_then(|lsp_settings| lsp_settings.settings);
 
-        Ok(settings.map(Self::transform_settings_for_roslyn))
+        let config = settings.map(Self::transform_settings_for_roslyn);
+        
+        // Cache the configuration to avoid regenerating on every poll
+        self.cached_config = config.clone();
+        
+        Ok(config)
     }
 
     fn transform_settings_for_roslyn(settings: zed::serde_json::Value) -> zed::serde_json::Value {
         let mut roslyn_config = zed::serde_json::json!({
-            // These code lenses show up as "Unknown Command" in Zed and don't do anything when clicked. Disable them by default.
+            // === Performance: Background Analysis ===
+            // Limit background analysis to only open files to prevent analyzing entire large solutions
+            // Options: "None" | "VisibleFilesAndOpenFilesWithPreviouslyReportedDiagnostics" | "OpenFiles" | "FullSolution"
+            "csharp|background_analysis.dotnet_analyzer_diagnostics_scope": "OpenFiles",
+            "csharp|background_analysis.dotnet_compiler_diagnostics_scope": "OpenFiles",
+            
+            // === Code Lens ===
+            // These show reference counts above methods but are expensive to compute and don't work in Zed anyway
             "csharp|code_lens.dotnet_enable_references_code_lens": false,
             "csharp|code_lens.dotnet_enable_tests_code_lens": false,
+            
+            // === Performance: Highlighting ===
+            // Disable expensive semantic highlighting features
+            "csharp|highlighting.dotnet_highlight_related_json_components": false,
+            "csharp|highlighting.dotnet_highlight_related_regex_components": false,
+            
+            // === Inlay Hints ===
             // Enable inlay hints in the language server by default.
             // This way, enabling inlay hints in Zed will cause inlay hints to show up in C# without extra configuration.
             "csharp|inlay_hints.dotnet_enable_inlay_hints_for_parameters": true,
@@ -162,6 +189,19 @@ impl Roslyn {
             "csharp|inlay_hints.csharp_enable_inlay_hints_for_lambda_parameter_types": true,
             "csharp|inlay_hints.csharp_enable_inlay_hints_for_implicit_object_creation": true,
             "csharp|inlay_hints.csharp_enable_inlay_hints_for_collection_expressions": true,
+            // Smart suppression to reduce clutter when hints are enabled
+            "csharp|inlay_hints.dotnet_suppress_inlay_hints_for_parameters_that_differ_only_by_suffix": true,
+            "csharp|inlay_hints.dotnet_suppress_inlay_hints_for_parameters_that_match_method_intent": true,
+            "csharp|inlay_hints.dotnet_suppress_inlay_hints_for_parameters_that_match_argument_name": true,
+            
+            // === Performance: Completion ===
+            // Show items from unimported namespaces but limit to improve performance
+            "csharp|completion.dotnet_show_completion_items_from_unimported_namespaces": true,
+            "csharp|completion.dotnet_show_name_completion_suggestions": true,
+            
+            // === Performance: Quick Info ===
+            // Disable expensive documentation features in hover tooltips
+            "csharp|quick_info.dotnet_show_remarks_in_quick_info": false,
         });
 
         let config_map = roslyn_config.as_object_mut().unwrap();
