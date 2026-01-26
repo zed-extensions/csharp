@@ -13,7 +13,8 @@
 (enum_declaration name: (identifier) @type)
 (struct_declaration (identifier) @type)
 (record_declaration (identifier) @type)
-(namespace_declaration name: (identifier) @module)
+; TODO: Let this be @module again once we support fallbacks
+(namespace_declaration name: (identifier) @type)
 
 (generic_name (identifier) @type)
 (type_parameter (identifier) @property.definition)
