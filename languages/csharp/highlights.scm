@@ -3,6 +3,7 @@
 ;; Methods
 
 (method_declaration name: (identifier) @function)
+(_ function: (identifier) @function)
 (local_function_statement name: (identifier) @function)
 
 ;; Types
