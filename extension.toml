@@ -21,8 +21,23 @@ language = "CSharp"
 repository = "https://github.com/tree-sitter/tree-sitter-c-sharp"
 commit = "dd5e59721a5f8dae34604060833902b882023aaf"
 
+[debug_adapters.netcoredbg]
+schema_path = "debug_adapter_schemas/netcoredbg.json"
+
+[debug_locators.csharp-test-runner]
+
 # Used to run `csharp-language-server --download` after an update
 [[capabilities]]
 kind = "process:exec"
 command = "*"
 args = ["--download"]
+
+[[capabilities]]
+kind = "download_file"
+host = "github.com"
+path = ["qwadrox", "netcoredbg", "**"]
+
+[[capabilities]]
+kind = "download_file"
+host = "objects.githubusercontent.com"
+path = ["**"]
