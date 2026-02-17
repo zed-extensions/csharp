@@ -1,0 +1,60 @@
+[
+  {
+    "label": "Test ${ZED_CUSTOM_csharp_namespace:}.${ZED_CUSTOM_csharp_class_name:}.${ZED_CUSTOM_csharp_method_name:}",
+    "command": "dotnet",
+    "args": [
+      "test",
+      "--filter",
+      "FullyQualifiedName=${ZED_CUSTOM_csharp_namespace:}.${ZED_CUSTOM_csharp_class_name:}.${ZED_CUSTOM_csharp_method_name:}"
+    ],
+    "cwd": "$ZED_DIRNAME",
+    "use_new_terminal": false,
+    "reveal": "always",
+    "tags": [
+      "csharp-test-method"
+    ],
+    "env": {
+      "CSHARP_TEST_NAMESPACE": "${ZED_CUSTOM_csharp_namespace:}",
+      "CSHARP_TEST_CLASS": "${ZED_CUSTOM_csharp_class_name:}",
+      "CSHARP_TEST_METHOD": "${ZED_CUSTOM_csharp_method_name:}",
+      "CSHARP_TEST_FILE_DIR": "$ZED_DIRNAME"
+    }
+  },
+  {
+    "label": "Test class ${ZED_CUSTOM_csharp_namespace:}.${ZED_CUSTOM_csharp_class_name:}",
+    "command": "dotnet",
+    "args": [
+      "test",
+      "--filter",
+      "FullyQualifiedName~${ZED_CUSTOM_csharp_namespace:}.${ZED_CUSTOM_csharp_class_name:}"
+    ],
+    "cwd": "$ZED_DIRNAME",
+    "use_new_terminal": false,
+    "reveal": "always",
+    "tags": [
+      "csharp-test-class"
+    ],
+    "env": {
+      "CSHARP_TEST_NAMESPACE": "${ZED_CUSTOM_csharp_namespace:}",
+      "CSHARP_TEST_CLASS": "${ZED_CUSTOM_csharp_class_name:}",
+      "CSHARP_TEST_METHOD": "",
+      "CSHARP_TEST_FILE_DIR": "$ZED_DIRNAME"
+    }
+  },
+  {
+    "label": "Test project",
+    "command": "dotnet",
+    "args": [
+      "test"
+    ],
+    "cwd": "$ZED_DIRNAME",
+    "use_new_terminal": false,
+    "reveal": "always",
+    "tags": [
+      "csharp-test-all"
+    ],
+    "env": {
+      "CSHARP_TEST_FILE_DIR": "$ZED_DIRNAME"
+    }
+  }
+]
