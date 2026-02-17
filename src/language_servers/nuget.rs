@@ -2,8 +2,7 @@ use std::cmp::Ordering;
 
 use zed_extension_api::{self as zed, http_client, serde_json, Result};
 
-const ROSLYN_NUGET_FEED_INDEX: &str =
-    "https://pkgs.dev.azure.com/azure-public/vside/_packaging/msft_consumption/nuget/v3/index.json";
+const ROSLYN_NUGET_FEED_INDEX: &str = "https://api.nuget.org/v3/index.json";
 
 pub struct NuGetClient {
     package_base_address: Option<String>,
