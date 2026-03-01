@@ -1,0 +1,9 @@
+name = "C# Targets File"
+grammar = "xml"
+path_suffixes = ["targets"]
+block_comment = ["<!-- ", " -->"]
+autoclose_before = "<"
+brackets = [{ start = "<", end = ">", close = true, newline = true }]
+prettier_parser_name = "xml"
+prettier_plugins = ["@prettier/plugin-xml"]
+hard_tabs = true
