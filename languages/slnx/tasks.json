@@ -1,0 +1,24 @@
+[
+  {
+    "label": "Restore Current Solution",
+    "command": "dotnet restore",
+    "args": ["$ZED_FILE"],
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "reveal_target": "center",
+    "hide": "on_success",
+    "shell": "system"
+  },
+  {
+    "label": "Build Current Solution",
+    "command": "dotnet build",
+    "args": ["$ZED_FILE"],
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "reveal_target": "center",
+    "hide": "on_success",
+    "shell": "system"
+  }
+]
