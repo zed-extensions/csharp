@@ -20,3 +20,8 @@ language = "CSharp"
 [grammars.c_sharp]
 repository = "https://github.com/tree-sitter/tree-sitter-c-sharp"
 commit = "485f0bae0274ac9114797fc10db6f7034e4086e3"
+
+[grammars.xml]
+repository = "https://github.com/tree-sitter-grammars/tree-sitter-xml"
+commit = "863dbc381f44f6c136a399e684383b977bb2beaa"
+path = "xml"
