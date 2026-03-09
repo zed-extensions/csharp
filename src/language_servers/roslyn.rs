@@ -2,7 +2,7 @@ use std::fs;
 
 use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
 
-use crate::language_servers::{nuget::NuGetClient, util};
+use crate::language_servers::{nuget::NuGetClient, project_detection, util};
 
 const PACKAGE_PREFIX: &str = "roslyn-language-server";
 const SERVER_BINARY: &str = "Microsoft.CodeAnalysis.LanguageServer";
@@ -153,10 +153,15 @@ impl Roslyn {
             .ok()
             .and_then(|lsp_settings| lsp_settings.settings);
 
-        Ok(settings.map(Self::transform_settings_for_roslyn))
+        let solution_path = project_detection::resolve_solution(worktree).unwrap_or(None);
+
+        Ok(Some(Self::build_configuration(settings, solution_path)))
     }
 
-    fn transform_settings_for_roslyn(settings: zed::serde_json::Value) -> zed::serde_json::Value {
+    fn build_configuration(
+        user_settings: Option<zed::serde_json::Value>,
+        solution_path: Option<String>,
+    ) -> zed::serde_json::Value {
         let mut roslyn_config = zed::serde_json::json!({
             // These code lenses show up as "Unknown Command" in Zed and don't do anything when clicked. Disable them by default.
             "csharp|code_lens.dotnet_enable_references_code_lens": false,
@@ -176,20 +181,24 @@ impl Roslyn {
         });
 
         let config_map = roslyn_config.as_object_mut().unwrap();
-        if let zed::serde_json::Value::Object(settings_map) = settings {
+
+        if let Some(sln) = solution_path {
+            config_map.insert(
+                "dotnet.defaultSolution".to_string(),
+                zed::serde_json::Value::String(sln),
+            );
+        }
+
+        if let Some(zed::serde_json::Value::Object(settings_map)) = user_settings {
             for (key, value) in settings_map {
                 if key.contains('|') {
-                    // This is already in the language|category format
                     if let zed::serde_json::Value::Object(nested_settings) = value {
                         for (nested_key, nested_value) in nested_settings {
-                            // The key already contains the proper format, just add the setting
                             config_map.insert(format!("{key}.{nested_key}"), nested_value);
                         }
                     }
-                }
-                // Handle direct roslyn-format settings (fallback for any other format)
-                else if key.contains('.') {
-                    config_map.insert(key.clone(), value.clone());
+                } else if key.contains('.') {
+                    config_map.insert(key, value);
                 }
             }
         }

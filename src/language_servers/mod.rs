@@ -1,5 +1,6 @@
 pub mod nuget;
 pub mod omnisharp;
+mod project_detection;
 pub mod roslyn;
 pub mod util;
 
