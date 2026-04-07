@@ -46,13 +46,13 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
-    uses: zed-industries/zed/.github/workflows/extension_bump.yml@main
+    uses: zed-industries/zed/.github/workflows/extension_bump.yml@3183c04515a489e394dca8a254304e96dacec62a
     secrets:
       app-id: ${{ secrets.ZED_ZIPPY_APP_ID }}
       app-secret: ${{ secrets.ZED_ZIPPY_APP_PRIVATE_KEY }}
     with:
       bump-type: ${{ needs.determine_bump_type.outputs.bump_type }}
-      force-bump: true
+      force-bump: ${{ github.event_name != 'push' }}
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.ref_name == 'main' && github.sha || 'anysha' }}labels
   cancel-in-progress: true

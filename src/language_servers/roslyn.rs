@@ -2,12 +2,14 @@ use std::fs;
 
 use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
 
-use crate::language_servers::util;
+use crate::language_servers::{nuget::NuGetClient, util};
 
-const REPO: &str = "SofusA/csharp-language-server";
+const PACKAGE_PREFIX: &str = "roslyn-language-server";
+const SERVER_BINARY: &str = "Microsoft.CodeAnalysis.LanguageServer";
 
 pub struct Roslyn {
-    cached_binary_path: Option<String>,
+    cached_server_path: Option<ServerPath>,
+    nuget: NuGetClient,
 }
 
 impl Roslyn {
@@ -15,7 +17,8 @@ impl Roslyn {
 
     pub fn new() -> Self {
         Roslyn {
-            cached_binary_path: None,
+            cached_server_path: None,
+            nuget: NuGetClient::new(),
         }
     }
 
@@ -31,15 +34,7 @@ impl Roslyn {
             .as_ref()
             .and_then(|binary_settings| binary_settings.arguments.clone());
 
-        if let Some(path) = binary_settings
-            .and_then(|binary_settings| binary_settings.path)
-            .or_else(|| {
-                self.cached_binary_path
-                    .as_ref()
-                    .filter(|path| fs::metadata(path).is_ok_and(|stat| stat.is_file()))
-                    .cloned()
-            })
-        {
+        if let Some(path) = binary_settings.and_then(|binary_settings| binary_settings.path) {
             return Ok(zed::Command {
                 command: path,
                 args: binary_args.unwrap_or_default(),
@@ -47,92 +42,108 @@ impl Roslyn {
             });
         }
 
+        if let Some(ref server_path) = self.cached_server_path {
+            if fs::metadata(server_path.as_str()).is_ok_and(|stat| stat.is_file()) {
+                return Ok(Self::build_command(server_path, binary_args));
+            }
+        }
+
         zed::set_language_server_installation_status(
             language_server_id,
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
         );
-        let release = zed::latest_github_release(
-            REPO,
-            zed::GithubReleaseOptions {
-                require_assets: true,
-                pre_release: false,
-            },
-        )?;
 
-        let (platform, arch) = zed::current_platform();
-
-        let arch_str = match arch {
-            zed::Architecture::Aarch64 => "aarch64",
-            zed::Architecture::X8664 => "x86_64",
-            zed::Architecture::X86 => {
-                return Err(format!("The roslyn lsp server wrapper does not support the following processor architecture: {:?}", arch));
-            }
+        let rid = match zed::current_platform() {
+            (zed::Os::Windows, zed::Architecture::X8664) => "win-x64",
+            (zed::Os::Windows, zed::Architecture::Aarch64) => "win-arm64",
+            (zed::Os::Linux, zed::Architecture::X8664) => "linux-x64",
+            (zed::Os::Linux, zed::Architecture::Aarch64) => "linux-arm64",
+            (zed::Os::Mac, zed::Architecture::X8664) => "osx-x64",
+            (zed::Os::Mac, zed::Architecture::Aarch64) => "osx-arm64",
+            _ => "any",
         };
 
-        let asset_name = format!(
-            "csharp-language-server-{arch}-{os}.{extension}",
-            os = match platform {
-                zed::Os::Mac => "apple-darwin",
-                zed::Os::Linux => "unknown-linux-gnu",
-                zed::Os::Windows => "pc-windows-msvc",
-            },
-            arch = arch_str,
-            extension = match platform {
-                zed::Os::Mac | zed::Os::Linux => "tar.gz",
-                zed::Os::Windows => "zip",
-            }
-        );
+        let package_id = format!("{PACKAGE_PREFIX}.{rid}");
+        let version = self.nuget.get_latest_version(&package_id)?;
+        let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, version);
 
-        let asset = release
-            .assets
-            .iter()
-            .find(|asset| asset.name == asset_name)
-            .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
+        let already_installed = Self::find_server_path(rid, &version_dir)
+            .is_ok_and(|sp| fs::metadata(sp.as_str()).is_ok_and(|stat| stat.is_file()));
 
-        let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, release.version);
-        let binary_path = match platform {
-            zed::Os::Windows => format!("{version_dir}/csharp-language-server.exe"),
-            _ => format!("{version_dir}/csharp-language-server"),
-        };
-
-        if !fs::metadata(&binary_path).is_ok_and(|stat| stat.is_file()) {
+        if !already_installed {
             zed::set_language_server_installation_status(
                 language_server_id,
                 &zed::LanguageServerInstallationStatus::Downloading,
             );
 
-            zed::download_file(
-                &asset.download_url,
-                &version_dir,
-                match platform {
-                    zed::Os::Mac | zed::Os::Linux => zed::DownloadedFileType::GzipTar,
-                    zed::Os::Windows => zed::DownloadedFileType::Zip,
-                },
-            )
-            .map_err(|e| format!("failed to download file: {e}"))?;
-
-            zed::make_file_executable(&binary_path)?;
+            self.nuget
+                .download_and_extract(&package_id, &version, &version_dir)?;
 
             util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
-
-            if let Ok(full_binary_path) = std::env::current_dir().map(|dir| dir.join(&binary_path))
-            {
-                // The `csharp-language-server` wrapper automatically downloads Roslyn on first launch,
-                // but we trigger `--download` here while the "Downloading roslyn" status is still visible.
-                // If this fails (e.g., if the exec capability is denied), ignore the error--Roslyn will
-                // be downloaded when the language server starts anyway.
-                _ = zed::Command::new(full_binary_path.to_string_lossy().as_ref())
-                    .arg("--download")
-                    .output();
-            }
         }
 
-        self.cached_binary_path = Some(binary_path.clone());
-        Ok(zed::Command {
-            command: binary_path,
-            args: binary_args.unwrap_or_default(),
-            env: Default::default(),
-        })
+        let server_path = Self::find_server_path(rid, &version_dir)?;
+        if let ServerPath::Exe(ref path) = server_path {
+            zed::make_file_executable(path)?;
+        }
+
+        let command = Self::build_command(&server_path, binary_args);
+        self.cached_server_path = Some(server_path);
+        Ok(command)
+    }
+
+    fn build_command(server_path: &ServerPath, user_args: Option<Vec<String>>) -> zed::Command {
+        let mut extra_args = vec!["--stdio".to_string(), "--autoLoadProjects".to_string()];
+        if let Some(args) = user_args {
+            extra_args.extend(args);
+        }
+
+        match server_path {
+            ServerPath::Dll(path) => {
+                let mut args = vec!["exec".to_string(), path.clone()];
+                args.extend(extra_args);
+                zed::Command {
+                    command: "dotnet".to_string(),
+                    args,
+                    env: Default::default(),
+                }
+            }
+            ServerPath::Exe(path) => zed::Command {
+                command: path.clone(),
+                args: extra_args,
+                env: Default::default(),
+            },
+        }
+    }
+
+    fn find_server_path(rid: &str, version_dir: &str) -> Result<ServerPath> {
+        let tools_dir = format!("{version_dir}/tools");
+
+        let tfm = fs::read_dir(&tools_dir)
+            .map_err(|e| format!("failed to read tools directory '{tools_dir}': {e}"))?
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                if entry.file_type().ok()?.is_dir() {
+                    entry.file_name().into_string().ok()
+                } else {
+                    None
+                }
+            })
+            .next()
+            .ok_or_else(|| format!("no TFM directory found inside '{tools_dir}'"))?;
+
+        let server_dir = format!("{tools_dir}/{tfm}/{rid}");
+        Ok(Self::server_path_for_rid(rid, server_dir))
+    }
+
+    fn server_path_for_rid(rid: &str, server_dir: String) -> ServerPath {
+        if rid == "any" {
+            ServerPath::Dll(format!("{server_dir}/{SERVER_BINARY}.dll"))
+        } else if rid.starts_with("win-") {
+            ServerPath::Exe(format!("{server_dir}/{SERVER_BINARY}.exe"))
+        } else {
+            ServerPath::Exe(format!("{server_dir}/{SERVER_BINARY}"))
+        }
     }
 
     pub fn configuration_options(
@@ -184,5 +195,18 @@ impl Roslyn {
         }
 
         roslyn_config
+    }
+}
+
+enum ServerPath {
+    Exe(String),
+    Dll(String),
+}
+
+impl ServerPath {
+    fn as_str(&self) -> &str {
+        match self {
+            ServerPath::Exe(path) | ServerPath::Dll(path) => path,
+        }
     }
 }
