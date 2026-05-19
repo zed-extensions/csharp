@@ -1,13 +1,13 @@
 mod language_servers;
 
-use language_servers::Roslyn;
 use zed_extension_api::{self as zed, Result};
 
-use crate::language_servers::Omnisharp;
+use crate::language_servers::{CsharpLs, Omnisharp, Roslyn};
 
 struct CsharpExtension {
     omnisharp: Option<Omnisharp>,
     roslyn: Option<Roslyn>,
+    csharp_ls: Option<CsharpLs>,
 }
 
 impl CsharpExtension {}
@@ -17,6 +17,7 @@ impl zed::Extension for CsharpExtension {
         Self {
             omnisharp: None,
             roslyn: None,
+            csharp_ls: None,
         }
     }
 
@@ -41,6 +42,10 @@ impl zed::Extension for CsharpExtension {
                 let roslyn = self.roslyn.get_or_insert_with(Roslyn::new);
                 roslyn.language_server_cmd(language_server_id, worktree)
             }
+            CsharpLs::LANGUAGE_SERVER_ID => {
+                let csharp_ls = self.csharp_ls.get_or_insert_with(CsharpLs::new);
+                csharp_ls.language_server_cmd(language_server_id, worktree)
+            }
             language_server_id => Err(format!("unknown language server: {language_server_id}")),
         }
     }
@@ -50,10 +55,11 @@ impl zed::Extension for CsharpExtension {
         language_server_id: &zed::LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<Option<zed::serde_json::Value>> {
-        if language_server_id.as_ref() == Roslyn::LANGUAGE_SERVER_ID {
-            return Roslyn::configuration_options(worktree);
+        match language_server_id.as_ref() {
+            Roslyn::LANGUAGE_SERVER_ID => Roslyn::configuration_options(worktree),
+            CsharpLs::LANGUAGE_SERVER_ID => CsharpLs::configuration_options(worktree),
+            _ => Ok(None),
         }
-        Ok(None)
     }
 }
 
