@@ -1,0 +1,280 @@
+{
+  "Class": {
+    "prefix": "class",
+    "body": [
+      "class ${1:MyClass}",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "Class declaration"
+  },
+  "Constructor": {
+    "prefix": "ctor",
+    "body": [
+      "public ${1:ClassName}($2)",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "Constructor"
+  },
+  "Property (full)": {
+    "prefix": "propfull",
+    "body": [
+      "private ${1:int} _${2:field};",
+      "",
+      "public ${1:int} ${2:field}",
+      "{",
+      "\tget => _${2:field};",
+      "\tset => _${2:field} = value;",
+      "}",
+      "$0"
+    ],
+    "description": "Full property with backing field"
+  },
+  "Property (auto)": {
+    "prefix": "prop",
+    "body": [
+      "public ${1:int} ${2:MyProperty} { get; set; }",
+      "$0"
+    ],
+    "description": "Auto-implemented property"
+  },
+  "Property (getter only)": {
+    "prefix": "propget",
+    "body": [
+      "public ${1:int} ${2:MyProperty} { get; }",
+      "$0"
+    ],
+    "description": "Getter-only property"
+  },
+  "Interface": {
+    "prefix": "interface",
+    "body": [
+      "interface I${1:MyInterface}",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "Interface declaration"
+  },
+  "Struct": {
+    "prefix": "struct",
+    "body": [
+      "struct ${1:MyStruct}",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "Struct declaration"
+  },
+  "Enum": {
+    "prefix": "enum",
+    "body": [
+      "enum ${1:MyEnum}",
+      "{",
+      "\t${2:Value1},",
+      "\t${3:Value2}",
+      "}",
+      "$0"
+    ],
+    "description": "Enum declaration"
+  },
+  "Main method": {
+    "prefix": "main",
+    "body": [
+      "static void Main(string[] args)",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "Main method"
+  },
+  "for loop": {
+    "prefix": "for",
+    "body": [
+      "for (int ${1:i} = 0; ${1:i} < ${2:length}; ${1:i}++)",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "For loop"
+  },
+  "foreach loop": {
+    "prefix": "foreach",
+    "body": [
+      "foreach (var ${1:item} in ${2:collection})",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "Foreach loop"
+  },
+  "while loop": {
+    "prefix": "while",
+    "body": [
+      "while (${1:condition})",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "While loop"
+  },
+  "do-while loop": {
+    "prefix": "dowhile",
+    "body": [
+      "do",
+      "{",
+      "\t$0",
+      "} while (${1:condition});"
+    ],
+    "description": "Do-while loop"
+  },
+  "if statement": {
+    "prefix": "if",
+    "body": [
+      "if (${1:condition})",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "If statement"
+  },
+  "if-else statement": {
+    "prefix": "ifelse",
+    "body": [
+      "if (${1:condition})",
+      "{",
+      "\t$2",
+      "}",
+      "else",
+      "{",
+      "\t$3",
+      "}"
+    ],
+    "description": "If-else statement"
+  },
+  "switch statement": {
+    "prefix": "switch",
+    "body": [
+      "switch (${1:expression})",
+      "{",
+      "\tcase ${2:value}:",
+      "\t\t$0",
+      "\t\tbreak;",
+      "\tdefault:",
+      "\t\tbreak;",
+      "}"
+    ],
+    "description": "Switch statement"
+  },
+  "try-catch": {
+    "prefix": "try",
+    "body": [
+      "try",
+      "{",
+      "\t$0",
+      "}",
+      "catch (System.Exception ex)",
+      "{",
+      "\tthrow;",
+      "}"
+    ],
+    "description": "Try-catch block"
+  },
+  "try-finally": {
+    "prefix": "tryfinally",
+    "body": [
+      "try",
+      "{",
+      "\t$0",
+      "}",
+      "finally",
+      "{",
+      "\t",
+      "}"
+    ],
+    "description": "Try-finally block"
+  },
+  "using directive": {
+    "prefix": "using",
+    "body": "using ${1:System};$0",
+    "description": "Using directive"
+  },
+  "namespace declaration": {
+    "prefix": "ns",
+    "body": [
+      "namespace ${1:MyNamespace}",
+      "{",
+      "\t$0",
+      "}"
+    ],
+    "description": "Namespace declaration"
+  },
+  "LINQ query": {
+    "prefix": "from",
+    "body": [
+      "var ${1:result} = from ${2:x} in ${3:source}",
+      "\t\t\twhere ${4:condition}",
+      "\t\t\tselect ${2:x};",
+      "$0"
+    ],
+    "description": "LINQ query expression"
+  },
+  "Console.WriteLine": {
+    "prefix": "cw",
+    "body": "Console.WriteLine(${1:message});$0",
+    "description": "Console.WriteLine"
+  },
+  "StringBuilder": {
+    "prefix": "sb",
+    "body": [
+      "var ${1:sb} = new System.Text.StringBuilder();",
+      "$0"
+    ],
+    "description": "StringBuilder declaration"
+  },
+  "equals override": {
+    "prefix": "equals",
+    "body": [
+      "public override bool Equals(object? obj)",
+      "{",
+      "\treturn obj is ${1:MyType} other &&",
+      "\t\t${2:EqualityComparer<${3:string}>.Default.Equals(${4:field}, other.${4:field})};",
+      "}",
+      "",
+      "public override int GetHashCode()",
+      "{",
+      "\treturn HashCode.Combine(${4:field});",
+      "}",
+      "$0"
+    ],
+    "description": "Equals and GetHashCode overrides"
+  },
+  "ToString override": {
+    "prefix": "tostring",
+    "body": [
+      "public override string ToString()",
+      "{",
+      "\treturn $\"${1:{$$2:field}}\";",
+      "}",
+      "$0"
+    ],
+    "description": "ToString override"
+  },
+  "null check": {
+    "prefix": "null",
+    "body": "ArgumentNullException.ThrowIfNull(${1:paramName});$0",
+    "description": "Null check guard"
+  },
+  "region block": {
+    "prefix": "region",
+    "body": [
+      "#region ${1:Region Name}",
+      "$0",
+      "#endregion"
+    ],
+    "description": "Region block"
+  }
+}
