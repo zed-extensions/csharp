@@ -33,7 +33,7 @@ impl zed::Extension for CsharpExtension {
                 Ok(zed::Command {
                     command: omnisharp_binary.path,
                     args: omnisharp_binary.args.unwrap_or_else(|| vec!["-lsp".into()]),
-                    env: Default::default(),
+                    env: worktree.shell_env(),
                 })
             }
             Roslyn::LANGUAGE_SERVER_ID => {
