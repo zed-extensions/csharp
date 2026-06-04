@@ -1,18 +1,26 @@
-;; Join up all the comments
+; Join up all the comments
 (comment)+ @comment.around
 
-;; Standard methods
+; Standard methods
 (method_declaration
-  body: (_ "{" (_)* @function.inside "}")) @function.around
+  body: (_
+    "{"
+    (_)* @function.inside
+    "}")) @function.around
 
-;; Standard classes
+; Standard classes
 (class_declaration
-  body: (_ "{" (_)* @class.inside "}")) @class.around
+  body: (_
+    "{"
+    (_)* @class.inside
+    "}")) @class.around
 
-;; Interface declarations
+; Interface declarations
 (method_declaration) @function.around
 
-;; Lambda expressions
+; Lambda expressions
 (lambda_expression
-  body: (_ "{"? (_)* @function.inside "}"? )
-) @function.around
+  body: (_
+    "{"?
+    (_)* @function.inside
+    "}"?)) @function.around
