@@ -6,8 +6,8 @@ use crate::language_servers::{nuget::NuGetClient, util};
 
 const PACKAGE_ID: &str = "csharp-ls";
 const SERVER_DLL: &str = "CSharpLanguageServer.dll";
-const DOTNET_HINT: &str = "csharp-ls requires the .NET SDK on PATH; install .NET 10+ \
-or set `lsp.\"csharp-ls\".binary.path` to a working `csharp-ls` binary.";
+const DOTNET_HINT: &str = "csharp-ls requires the .NET SDK on PATH. Install .NET 10+ \
+or set `lsp.csharp-ls.binary.path` to a working `csharp-ls` binary.";
 
 pub struct CsharpLs {
     cached_dll_path: Option<String>,
@@ -118,12 +118,14 @@ impl CsharpLs {
             .ok_or_else(|| format!("no TFM directory found inside '{tools_dir}'"))?;
 
         let dll_path = format!("{tools_dir}/{tfm}/any/{SERVER_DLL}");
-        if !fs::metadata(&dll_path).is_ok_and(|s| s.is_file()) {
-            return Err(format!(
+
+        if fs::metadata(&dll_path).is_ok_and(|s| s.is_file()) {
+            Ok(dll_path)
+        } else {
+            Err(format!(
                 "csharp-ls package layout unexpected: missing entry DLL at '{dll_path}'"
-            ));
+            ))
         }
-        Ok(dll_path)
     }
 
     pub fn configuration_options(
