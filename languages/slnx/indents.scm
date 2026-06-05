@@ -1,2 +1,1 @@
-(STag ">" @end) @indent
-(EmptyElemTag "/>" @end) @indent
+../msbuild/indents.scm
