@@ -133,7 +133,10 @@ impl Roslyn {
             .ok_or_else(|| format!("no TFM directory found inside '{tools_dir}'"))?;
 
         let server_dir = format!("{tools_dir}/{tfm}/{rid}");
-        Ok(Self::server_path_for_rid(rid, server_dir))
+        match Self::server_path_for_rid(rid, server_dir) {
+            ServerPath::Dll(path) => Ok(ServerPath::Dll(util::absolute_path(&path)?)),
+            exe => Ok(exe),
+        }
     }
 
     fn server_path_for_rid(rid: &str, server_dir: String) -> ServerPath {
