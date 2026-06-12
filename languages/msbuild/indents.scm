@@ -1,2 +1,5 @@
-(STag ">" @end) @indent
-(EmptyElemTag "/>" @end) @indent
+(STag
+  ">" @end) @indent
+
+(EmptyElemTag
+  "/>" @end) @indent

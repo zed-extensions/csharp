@@ -1,85 +1,102 @@
-;; XML declaration
-
+; XML declaration
 "xml" @keyword
 
-[ "version" "encoding" "standalone" ] @property
+[
+  "version"
+  "encoding"
+  "standalone"
+] @property
 
 (EncName) @string.special
 
 (VersionNum) @number
 
-[ "yes" "no" ] @boolean
+[
+  "yes"
+  "no"
+] @boolean
 
-;; Processing instructions
-
+; Processing instructions
 (PI) @embedded
 
-(PI (PITarget) @keyword)
+(PI
+  (PITarget) @keyword)
 
-;; Element declaration
-
+; Element declaration
 (elementdecl
   "ELEMENT" @keyword
   (Name) @tag)
 
 (contentspec
-  (_ (Name) @property))
+  (_
+    (Name) @property))
 
 "#PCDATA" @type.builtin
 
-[ "EMPTY" "ANY" ] @string.special.symbol
+[
+  "EMPTY"
+  "ANY"
+] @string.special.symbol
 
-[ "*" "?" "+" ] @operator
+[
+  "*"
+  "?"
+  "+"
+] @operator
 
-;; Entity declaration
-
+; Entity declaration
 (GEDecl
   "ENTITY" @keyword
   (Name) @constant)
 
-(GEDecl (EntityValue) @string)
+(GEDecl
+  (EntityValue) @string)
 
 (NDataDecl
   "NDATA" @keyword
   (Name) @label)
 
-;; Parsed entity declaration
-
+; Parsed entity declaration
 (PEDecl
   "ENTITY" @keyword
   "%" @operator
   (Name) @constant)
 
-(PEDecl (EntityValue) @string)
+(PEDecl
+  (EntityValue) @string)
 
-;; Notation declaration
-
+; Notation declaration
 (NotationDecl
   "NOTATION" @keyword
   (Name) @constant)
 
 (NotationDecl
   (ExternalID
-    (SystemLiteral (URI) @string.special)))
+    (SystemLiteral
+      (URI) @string.special)))
 
-;; Attlist declaration
-
+; Attlist declaration
 (AttlistDecl
   "ATTLIST" @keyword
   (Name) @tag)
 
-(AttDef (Name) @property)
+(AttDef
+  (Name) @property)
 
-(AttDef (Enumeration (Nmtoken) @string))
+(AttDef
+  (Enumeration
+    (Nmtoken) @string))
 
-(DefaultDecl (AttValue) @string)
+(DefaultDecl
+  (AttValue) @string)
 
 [
   (StringType)
   (TokenizedType)
 ] @type.builtin
 
-(NotationType "NOTATION" @type.builtin)
+(NotationType
+  "NOTATION" @type.builtin)
 
 [
   "#REQUIRED"
@@ -87,73 +104,95 @@
   "#FIXED"
 ] @attribute
 
-;; Entities
-
+; Entities
 (EntityRef) @constant
 
 ((EntityRef) @constant.builtin
- (#any-of? @constant.builtin
-   "&amp;" "&lt;" "&gt;" "&quot;" "&apos;"))
+  (#any-of? @constant.builtin "&amp;" "&lt;" "&gt;" "&quot;" "&apos;"))
 
 (CharRef) @constant
 
 (PEReference) @constant
 
-;; External references
-
-[ "PUBLIC" "SYSTEM" ] @keyword
+; External references
+[
+  "PUBLIC"
+  "SYSTEM"
+] @keyword
 
 (PubidLiteral) @string.special
 
-(SystemLiteral (URI) @markup.link)
+(SystemLiteral
+  (URI) @markup.link)
 
-;; Processing instructions
+; Processing instructions
+(XmlModelPI
+  "xml-model" @keyword)
 
-(XmlModelPI "xml-model" @keyword)
+(StyleSheetPI
+  "xml-stylesheet" @keyword)
 
-(StyleSheetPI "xml-stylesheet" @keyword)
+(PseudoAtt
+  (Name) @property)
 
-(PseudoAtt (Name) @property)
+(PseudoAtt
+  (PseudoAttValue) @string)
 
-(PseudoAtt (PseudoAttValue) @string)
+; Doctype declaration
+(doctypedecl
+  "DOCTYPE" @keyword)
 
-;; Doctype declaration
+(doctypedecl
+  (Name) @type)
 
-(doctypedecl "DOCTYPE" @keyword)
+; Tags
+(STag
+  (Name) @tag)
 
-(doctypedecl (Name) @type)
+(ETag
+  (Name) @tag)
 
-;; Tags
+(EmptyElemTag
+  (Name) @tag)
 
-(STag (Name) @tag)
+; Attributes
+(Attribute
+  (Name) @property)
 
-(ETag (Name) @tag)
+(Attribute
+  (AttValue) @string)
 
-(EmptyElemTag (Name) @tag)
-
-;; Attributes
-
-(Attribute (Name) @property)
-
-(Attribute (AttValue) @string)
-
-;; Delimiters & punctuation
-
+; Delimiters & punctuation
 [
- "<?" "?>"
- "<!" "]]>"
- "<" ">"
- "</" "/>"
+  "<?"
+  "?>"
+  "<!"
+  "]]>"
+  "<"
+  ">"
+  "</"
+  "/>"
 ] @punctuation.delimiter
 
-[ "(" ")" "[" "]" ] @punctuation.bracket
+[
+  "("
+  ")"
+  "["
+  "]"
+] @punctuation.bracket
 
-[ "\"" "'" ] @punctuation.delimiter
+[
+  "\""
+  "'"
+] @punctuation.delimiter
 
-[ "," "|" "=" ] @operator
+[
+  ","
+  "|"
+  "="
+] @operator
 
-;; Text
-
+; Text
 (CharData) @markup
 
 (CDSect
@@ -161,8 +200,7 @@
   (CData) @markup.raw
   "]]>" @markup.heading)
 
-;; Misc
-
+; Misc
 (Comment) @comment
 
 (ERROR) @error
