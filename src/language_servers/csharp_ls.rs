@@ -120,7 +120,7 @@ impl CsharpLs {
         let dll_path = format!("{tools_dir}/{tfm}/any/{SERVER_DLL}");
 
         if fs::metadata(&dll_path).is_ok_and(|s| s.is_file()) {
-            Ok(dll_path)
+            util::absolute_path(&dll_path)
         } else {
             Err(format!(
                 "csharp-ls package layout unexpected: missing entry DLL at '{dll_path}'"

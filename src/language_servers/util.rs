@@ -2,6 +2,12 @@ use std::fs;
 
 use zed_extension_api::Result;
 
+pub(super) fn absolute_path(path: &str) -> Result<String> {
+    let cwd = std::env::current_dir()
+        .map_err(|e| format!("failed to resolve extension working directory: {e}"))?;
+    Ok(cwd.join(path).to_string_lossy().into_owned())
+}
+
 pub(super) fn remove_outdated_versions(
     language_server_id: &'static str,
     version_dir: &str,
