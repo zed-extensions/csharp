@@ -1,0 +1,16 @@
+[
+  { "token_type": "field", "style": ["property", "variable.member", "variable"] },
+  { "token_type": "constant", "style": ["constant"] },
+  { "token_type": "controlKeyword", "style": ["keyword.control", "keyword"] },
+  { "token_type": "delegate", "style": ["type.delegate", "type"] },
+  { "token_type": "extensionMethod", "style": ["function.method", "function"] },
+  { "token_type": "operatorOverloaded", "style": ["operator"] },
+  { "token_type": "recordClass", "style": ["type.class", "class", "type"] },
+  { "token_type": "recordStruct", "style": ["type.struct", "struct", "type"] },
+  { "token_type": "module", "style": ["namespace", "module"] },
+  { "token_type": "functionPointer", "style": ["function", "type"] },
+  { "token_type": "pointer", "style": ["type"] },
+  { "token_type": "excludedCode", "style": ["comment"] },
+  { "token_type": "stringVerbatim", "style": ["string"] },
+  { "token_type": "stringEscapeCharacter", "style": ["string.escape", "string.special", "string"] }
+]
