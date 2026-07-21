@@ -62,20 +62,25 @@ impl CsharpLs {
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
         );
 
-        let version = self.nuget.get_latest_version(PACKAGE_ID)?;
-        let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, version);
+        let version_dir = if let Ok(version) = self.nuget.get_latest_version(PACKAGE_ID) {
+            let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, version);
 
-        if Self::find_dll(&version_dir).is_err() {
-            zed::set_language_server_installation_status(
-                language_server_id,
-                &zed::LanguageServerInstallationStatus::Downloading,
-            );
+            if Self::find_dll(&version_dir).is_err() {
+                zed::set_language_server_installation_status(
+                    language_server_id,
+                    &zed::LanguageServerInstallationStatus::Downloading,
+                );
 
-            self.nuget
-                .download_and_extract(PACKAGE_ID, &version, &version_dir)?;
+                self.nuget
+                    .download_and_extract(PACKAGE_ID, &version, &version_dir)?;
 
-            util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
-        }
+                util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
+            }
+
+            version_dir
+        } else {
+            util::find_offline_version(Self::LANGUAGE_SERVER_ID)?
+        };
 
         let dll_path = Self::find_dll(&version_dir)?;
         let command = Self::dotnet_exec(worktree, &dll_path, binary_args)?;

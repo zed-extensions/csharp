@@ -64,23 +64,28 @@ impl Roslyn {
         };
 
         let package_id = format!("{PACKAGE_PREFIX}.{rid}");
-        let version = self.nuget.get_latest_version(&package_id)?;
-        let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, version);
+        let version_dir = if let Ok(version) = self.nuget.get_latest_version(&package_id) {
+            let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, version);
 
-        let already_installed = Self::find_server_path(rid, &version_dir)
-            .is_ok_and(|sp| fs::metadata(sp.as_str()).is_ok_and(|stat| stat.is_file()));
+            let already_installed = Self::find_server_path(rid, &version_dir)
+                .is_ok_and(|sp| fs::metadata(sp.as_str()).is_ok_and(|stat| stat.is_file()));
 
-        if !already_installed {
-            zed::set_language_server_installation_status(
-                language_server_id,
-                &zed::LanguageServerInstallationStatus::Downloading,
-            );
+            if !already_installed {
+                zed::set_language_server_installation_status(
+                    language_server_id,
+                    &zed::LanguageServerInstallationStatus::Downloading,
+                );
 
-            self.nuget
-                .download_and_extract(&package_id, &version, &version_dir)?;
+                self.nuget
+                    .download_and_extract(&package_id, &version, &version_dir)?;
 
-            util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
-        }
+                util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
+            }
+
+            version_dir
+        } else {
+            util::find_offline_version(Self::LANGUAGE_SERVER_ID)?
+        };
 
         let server_path = Self::find_server_path(rid, &version_dir)?;
         if let ServerPath::Exe(ref path) = server_path {
