@@ -21,6 +21,31 @@ language = "CSharp"
 name = "csharp-ls"
 language = "CSharp"
 
+[debug_adapters.netcoredbg]
+schema_path = "debug_adapter_schemas/netcoredbg.json"
+
+# Turns a `dotnet run` task into a build-then-debug scenario.
+[debug_locators.dotnet]
+
+# netcoredbg release archives; GitHub asset downloads redirect to
+# objects.githubusercontent.com.
+[[capabilities]]
+kind = "download_file"
+host = "github.com"
+path = ["Samsung", "netcoredbg", "releases", "**"]
+
+[[capabilities]]
+kind = "download_file"
+host = "objects.githubusercontent.com"
+path = ["**"]
+
+# Used by the `dotnet` debug locator to ask MSBuild where the build output
+# landed (`dotnet msbuild -getProperty:TargetPath`).
+[[capabilities]]
+kind = "process:exec"
+command = "dotnet"
+args = ["**"]
+
 [grammars.c_sharp]
 repository = "https://github.com/tree-sitter/tree-sitter-c-sharp"
 commit = "485f0bae0274ac9114797fc10db6f7034e4086e3"
