@@ -2,12 +2,13 @@ mod language_servers;
 
 use zed_extension_api::{self as zed, Result};
 
-use crate::language_servers::{CsharpLs, Omnisharp, Roslyn};
+use crate::language_servers::{CsharpLs, MsbuildProjectTools, Omnisharp, Roslyn};
 
 struct CsharpExtension {
     omnisharp: Option<Omnisharp>,
     roslyn: Option<Roslyn>,
     csharp_ls: Option<CsharpLs>,
+    msbuild_project_tools: Option<MsbuildProjectTools>,
 }
 
 impl CsharpExtension {}
@@ -18,6 +19,7 @@ impl zed::Extension for CsharpExtension {
             omnisharp: None,
             roslyn: None,
             csharp_ls: None,
+            msbuild_project_tools: None,
         }
     }
 
@@ -46,6 +48,12 @@ impl zed::Extension for CsharpExtension {
                 let csharp_ls = self.csharp_ls.get_or_insert_with(CsharpLs::new);
                 csharp_ls.language_server_cmd(language_server_id, worktree)
             }
+            MsbuildProjectTools::LANGUAGE_SERVER_ID => {
+                let msbuild_project_tools = self
+                    .msbuild_project_tools
+                    .get_or_insert_with(MsbuildProjectTools::new);
+                msbuild_project_tools.language_server_cmd(language_server_id, worktree)
+            }
             language_server_id => Err(format!("unknown language server: {language_server_id}")),
         }
     }
@@ -58,6 +66,22 @@ impl zed::Extension for CsharpExtension {
         match language_server_id.as_ref() {
             Roslyn::LANGUAGE_SERVER_ID => Roslyn::configuration_options(worktree),
             CsharpLs::LANGUAGE_SERVER_ID => CsharpLs::configuration_options(worktree),
+            MsbuildProjectTools::LANGUAGE_SERVER_ID => {
+                MsbuildProjectTools::configuration_options(worktree)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    fn language_server_initialization_options(
+        &mut self,
+        language_server_id: &zed::LanguageServerId,
+        worktree: &zed::Worktree,
+    ) -> Result<Option<zed::serde_json::Value>> {
+        match language_server_id.as_ref() {
+            MsbuildProjectTools::LANGUAGE_SERVER_ID => {
+                MsbuildProjectTools::initialization_options(worktree)
+            }
             _ => Ok(None),
         }
     }

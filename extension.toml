@@ -21,6 +21,15 @@ language = "CSharp"
 name = "csharp-ls"
 language = "CSharp"
 
+[language_servers.msbuild-project-tools]
+name = "MSBuild Project Tools"
+language = ["C# Project File", "MSBuild File", "C# Solution File"]
+
+[language_servers.msbuild-project-tools.language_ids]
+"C# Project File" = "xml"
+"MSBuild File" = "xml"
+"C# Solution File" = "xml"
+
 [grammars.c_sharp]
 repository = "https://github.com/tree-sitter/tree-sitter-c-sharp"
 commit = "485f0bae0274ac9114797fc10db6f7034e4086e3"
