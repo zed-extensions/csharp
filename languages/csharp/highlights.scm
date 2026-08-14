@@ -226,8 +226,10 @@
 ; pattern expression keywords
 (negated_pattern
   "not" @keyword)
+
 (and_pattern
   "and" @keyword)
+
 (or_pattern
   "or" @keyword)
 
