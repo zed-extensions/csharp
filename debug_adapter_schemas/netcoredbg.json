@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "netcoredbg debug configuration",
+  "description": "Debug configuration for .NET applications, handled by netcoredbg.",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["request", "program"],
+      "properties": {
+        "request": {
+          "type": "string",
+          "const": "launch",
+          "description": "Start a new .NET process under the debugger."
+        },
+        "program": {
+          "type": "string",
+          "description": "Absolute path to the managed assembly to debug, e.g. bin/Debug/net10.0/App.dll."
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Command-line arguments passed to the program."
+        },
+        "cwd": {
+          "type": "string",
+          "description": "Working directory for the debuggee. Defaults to the worktree root."
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "default": {},
+          "description": "Environment variables set for the debuggee."
+        },
+        "stopAtEntry": {
+          "type": "boolean",
+          "default": false,
+          "description": "Break as soon as the entry point is reached."
+        },
+        "justMyCode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Restrict stepping and breakpoints to code built from this solution."
+        },
+        "enableStepFiltering": {
+          "type": "boolean",
+          "default": true,
+          "description": "Step over property getters, setters, and operators."
+        },
+        "console": {
+          "type": "string",
+          "enum": ["internalConsole", "integratedTerminal", "externalTerminal"],
+          "default": "internalConsole",
+          "description": "Where the debuggee's stdio is attached."
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "required": ["request"],
+      "properties": {
+        "request": {
+          "type": "string",
+          "const": "attach",
+          "description": "Attach to an already running .NET process."
+        },
+        "processId": {
+          "type": ["integer", "string"],
+          "description": "Process id to attach to."
+        },
+        "justMyCode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Restrict stepping and breakpoints to code built from this solution."
+        }
+      },
+      "additionalProperties": true
+    }
+  ]
+}
