@@ -23,3 +23,16 @@ pub(super) fn remove_outdated_versions(
     }
     Ok(())
 }
+
+pub(super) fn find_offline_version(language_server_id: &'static str) -> Result<String> {
+    let entries = fs::read_dir(".").map_err(|e| format!("failed to list working directory {e}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("failed to load directory entry {e}"))?;
+        if let Ok(name) = entry.file_name().into_string() {
+            if name.starts_with(language_server_id) {
+                return Ok(name);
+            }
+        }
+    }
+    Err(format!("couldn't find installed language server version; try connecting to the internet"))
+}

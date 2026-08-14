@@ -1,5 +1,5 @@
 use std::fs;
-use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
+use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Os, Result};
 
 use crate::language_servers::util;
 
@@ -60,68 +60,77 @@ impl Omnisharp {
             language_server_id,
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
         );
-        let release = zed::latest_github_release(
+        let (platform, arch) = zed::current_platform();
+        let binary_path = if let Ok(release) = zed::latest_github_release(
             "OmniSharp/omnisharp-roslyn",
             zed::GithubReleaseOptions {
                 require_assets: true,
                 pre_release: false,
             },
-        )?;
-
-        let (platform, arch) = zed::current_platform();
-        let asset_name = format!(
-            "omnisharp-{os}-{arch}-net6.0.{extension}",
-            os = match platform {
-                zed::Os::Mac => "osx",
-                zed::Os::Linux => "linux",
-                zed::Os::Windows => "win",
-            },
-            arch = match arch {
-                zed::Architecture::Aarch64 => "arm64",
-                zed::Architecture::X86 => "x86",
-                zed::Architecture::X8664 => "x64",
-            },
-            extension = match platform {
-                zed::Os::Mac | zed::Os::Linux => "tar.gz",
-                zed::Os::Windows => "zip",
-            }
-        );
-
-        let asset = release
-            .assets
-            .iter()
-            .find(|asset| asset.name == asset_name)
-            .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
-
-        let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, release.version);
-        let binary_path = match platform {
-            zed::Os::Windows => format!("{version_dir}/OmniSharp.exe"),
-            _ => format!("{version_dir}/OmniSharp"),
-        };
-
-        if !fs::metadata(&binary_path).is_ok_and(|stat| stat.is_file()) {
-            zed::set_language_server_installation_status(
-                language_server_id,
-                &zed::LanguageServerInstallationStatus::Downloading,
+        ) {
+            let asset_name = format!(
+                "omnisharp-{os}-{arch}-net6.0.{extension}",
+                os = match platform {
+                    zed::Os::Mac => "osx",
+                    zed::Os::Linux => "linux",
+                    zed::Os::Windows => "win",
+                },
+                arch = match arch {
+                    zed::Architecture::Aarch64 => "arm64",
+                    zed::Architecture::X86 => "x86",
+                    zed::Architecture::X8664 => "x64",
+                },
+                extension = match platform {
+                    zed::Os::Mac | zed::Os::Linux => "tar.gz",
+                    zed::Os::Windows => "zip",
+                }
             );
 
-            zed::download_file(
-                &asset.download_url,
-                &version_dir,
-                match platform {
-                    zed::Os::Mac | zed::Os::Linux => zed::DownloadedFileType::GzipTar,
-                    zed::Os::Windows => zed::DownloadedFileType::Zip,
-                },
-            )
-            .map_err(|e| format!("failed to download file: {e}"))?;
+            let asset = release
+                .assets
+                .iter()
+                .find(|asset| asset.name == asset_name)
+                .ok_or_else(|| format!("no asset found matching {:?}", asset_name))?;
 
-            util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
-        }
+            let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, release.version);
+            let binary_path = Self::get_binary_path(&version_dir, platform);
+
+            if !fs::metadata(&binary_path).is_ok_and(|stat| stat.is_file()) {
+                zed::set_language_server_installation_status(
+                    language_server_id,
+                    &zed::LanguageServerInstallationStatus::Downloading,
+                );
+
+                zed::download_file(
+                    &asset.download_url,
+                    &version_dir,
+                    match platform {
+                        zed::Os::Mac | zed::Os::Linux => zed::DownloadedFileType::GzipTar,
+                        zed::Os::Windows => zed::DownloadedFileType::Zip,
+                    },
+                )
+                .map_err(|e| format!("failed to download file: {e}"))?;
+
+                util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
+            }
+
+            binary_path
+        } else {
+            let version_dir = util::find_offline_version(Self::LANGUAGE_SERVER_ID)?;
+            Self::get_binary_path(&version_dir, platform)
+        };
 
         self.cached_binary_path = Some(binary_path.clone());
         Ok(OmnisharpBinary {
             path: binary_path,
             args: binary_args,
         })
+    }
+
+    fn get_binary_path(version_dir: &str, platform: Os) -> String {
+        match platform {
+            zed::Os::Windows => format!("{version_dir}/OmniSharp.exe"),
+            _ => format!("{version_dir}/OmniSharp"),
+        }
     }
 }
