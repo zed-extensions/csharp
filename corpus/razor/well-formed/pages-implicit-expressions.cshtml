@@ -1,0 +1,27 @@
+@page "/contacts"
+@model ContactsModel
+@{
+    ViewData["Title"] = "Contacts";
+}
+
+<h2>Contacts</h2>
+
+<table>
+    <thead>
+        <tr><th>Name</th><th>Email</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var contact in Model.Contacts)
+        {
+            <tr>
+                <td>@contact.Name</td>
+                <td>@contact.Email</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (Model.Contacts.Count == 0)
+{
+    <p>No contacts yet.</p>
+}

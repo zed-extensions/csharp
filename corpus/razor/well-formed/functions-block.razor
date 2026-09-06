@@ -1,0 +1,12 @@
+@functions {
+    public string Greeting { get; set; } = "hello";
+
+    public void Reset()
+    {
+        Greeting = "";
+    }
+}
+
+<h1>@Greeting</h1>
+
+<button @onclick="Reset">Reset</button>

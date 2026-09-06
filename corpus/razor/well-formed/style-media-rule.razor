@@ -1,0 +1,24 @@
+@page "/theme"
+
+<style>
+    @media (max-width: 600px) {
+        .card {
+            padding: 0.5rem;
+        }
+    }
+
+    .accent {
+        color: @Model.AccentColor;
+    }
+
+    .content {
+        content: "@Model.QuotedValue";
+    }
+</style>
+
+<div class="card">Themed content</div>
+
+@code {
+    public string AccentColor { get; set; } = "#3fb27f";
+    public string QuotedValue { get; set; } = "css-safe";
+}

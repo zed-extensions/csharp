@@ -1,0 +1,18 @@
+@page "/grid"
+
+<div class="grid">
+    <table>
+        <thead>
+            <tr><th>Col</th></tr>
+        </tbody>
+    </table>
+</div>
+
+@foreach (var row in Model.Rows)
+{
+    <tr>
+        <td>@row.First</td>
+    </tr>
+}
+
+<p>Recovered paragraph after mismatched tags.</p>

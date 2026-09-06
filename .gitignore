@@ -3,7 +3,14 @@
 #
 
 *.wasm
+# Zed's development builds clone declared grammars into `grammars/<id>`.
 /grammars
+
+#
+# Node (grammar tooling)
+#
+
+node_modules/
 
 #
 # Rust

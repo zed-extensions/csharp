@@ -1,0 +1,45 @@
+@page "/products"
+@model ProductsModel
+@using MyApp.Models
+@inject IProductRepository Repository
+@inherits BasePage
+@attribute [Authorize]
+
+<h1>Products</h1>
+
+@foreach (var product in Model.Products)
+{
+    <div class="product">
+        <span>@product.Name</span>
+        <span>@product.Price</span>
+    </div>
+}
+
+@switch (Model.Category)
+{
+    case "books":
+        <p>Browse books</p>
+        break;
+    case "toys":
+        <p>Browse toys</p>
+        break;
+    default:
+        <p>Browse everything</p>
+        break;
+}
+
+@if (Model.Products.Any())
+{
+    @if (Model.Products.Count > 10)
+    {
+        <p>Large catalog</p>
+    }
+    else
+    {
+        <p>Small catalog</p>
+    }
+}
+else
+{
+    <p>Catalog is empty</p>
+}

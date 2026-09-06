@@ -35,7 +35,7 @@ does not modify a user's installed extensions. The fork also inherits
 maintenance of the OmniSharp, `csharp-ls` and NuGet code paths, and takes on a
 merge burden against upstream. Both are managed by D0.1 rather than wished away.
 
-- [ ] **D0.1 — Establish fork hygiene before M1 starts**
+- [x] **D0.1 — Establish fork hygiene before M1 starts** *(done 2026-09-05)*
   - `upstream` remote points at `zed-extensions/csharp`; `origin` points at the
     fork. (Remote rename done; `origin` is added once the GitHub fork exists.)
   - **Upstream sync policy:** fetch and merge `upstream/main` at the start of
@@ -52,9 +52,13 @@ merge burden against upstream. Both are managed by D0.1 rather than wished away.
     it will never run under the fork's owner. Either adopt the gate to the fork
     owner or replace it with a manual version-bump convention. Decide before
     M1.0 adds the first real CI job, so there is one workflow story rather than
-    two.
+    two. *(DECIDED: replaced with the manual convention — `scripts/bump-version.sh`
+    + `docs/versioning.md`; the workflow was removed. One workflow story:
+    `ci.yml`.)*
   - **Registry:** publishing requires a PR to `zed-industries/extensions`
     adding `csharp-plus` as a new entry. Verify the id is free before M1.5.
+    *(Verified free 2026-09-05 — registry then contained `csharp` and
+    `csharp-snippets` only.)*
   - Acceptance: a clean `git merge upstream/main` runs green, the licence and
     attribution obligations are satisfied, and the version-bump story is one
     documented mechanism.
@@ -132,6 +136,10 @@ without recording the outcome in this file.
 | G1 | M0.2 | Which band does the best candidate land in? | Adopt / fork and vendor / descope M1 to injection-only |
 | G2 | M4.1 | Upstream route accepted within 30 days of a complete M3.3? | Extension-owned proxy route, or stop at experimental |
 
+Recorded outcomes: **G1 = fork and vendor** (2026-09-05,
+`docs/razor-grammar-audit.md`) — no candidate passed Adopt as-is; the chosen
+grammar was vendored and fixed to Adopt-band criteria. G0 and G2 pending.
+
 M3.3 additionally times out on its own: if there is no substantive Zed staff
 response within 30 days of posting, treat it as a decline for planning purposes
 and start the G2 clock.
@@ -163,7 +171,8 @@ remove the remaining unknowns before changing user-visible behavior.
       become the whole roadmap — an acceptable product outcome. Record it and
       move on rather than retrying against newer packages ad hoc.
 
-- [ ] **M0.1 — Inventory the extension's current contract**
+- [x] **M0.1 — Inventory the extension's current contract** *(done 2026-09-05 —
+  `docs/inventory.md`)*
   - Document language registrations, server installation/launch behavior,
     project tasks, supported platforms, and user settings.
   - Capture a baseline for `.cs`, `.csproj`, MSBuild, and `.slnx` behavior.
@@ -171,7 +180,14 @@ remove the remaining unknowns before changing user-visible behavior.
     source files and test files it touches. The table is the deliverable; a
     prose audit is not.
 
-- [ ] **M0.2 — Audit Razor grammar fitness and licence compatibility**
+- [x] **M0.2 — Audit Razor grammar fitness and licence compatibility**
+  *(decided 2026-09-05 — G1 outcome: **fork and vendor**
+  `tris203/tree-sitter-razor` @ `d4664e4` (MIT) into
+  [joeizang/tree-sitter-razor](https://github.com/joeizang/tree-sitter-razor); three named grammar fixes applied; post-fix
+  the fork parses 14/14 well-formed corpus files with zero errors and 79/79
+  upstream tests. Full numbers, rejected candidates (licence-unverifiable
+  grammar; query-over-html non-candidate), and known pathological-containment
+  limits: `docs/razor-grammar-audit.md`.)*
   - There is no canonical `tree-sitter-razor`. Candidates are small,
     lightly-maintained third-party repositories (noundry/zed-razor,
     IbrahimSabriOrene/zed-razor-treesitter, NoisKung/razor-syntex-zed).
@@ -222,7 +238,9 @@ remove the remaining unknowns before changing user-visible behavior.
   If every candidate lands in Reject, G1's else-branch applies: descope M1 to a
   hand-written injection-only approach, or write a grammar.
 
-- [ ] **M0.3a — Razor file corpus (gates M1)**
+- [x] **M0.3a — Razor file corpus (gates M1)** *(done 2026-09-05 —
+  `corpus/razor/`: 14 well-formed + 10 pathological files; no secrets; input
+  to M0.2's fitness run and M1.0's harness)*
   - A directory of `.razor` and `.cshtml` files only — no projects, no restore.
   - Cover directives, Tag Helpers, layouts/partials, components and parameters,
     scoped CSS, JS interop, and deliberately pathological cases: unterminated

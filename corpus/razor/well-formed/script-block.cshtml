@@ -1,0 +1,13 @@
+@page "/analytics"
+
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    var userId = '@Model.UserId';
+    var endpoint = '@Url.Content("~/api/analytics")';
+    if (userId) { gtag('config', 'G-EXAMPLE', { user_id: userId }); }
+</script>
+
+<p>Analytics @Model.Status</p>

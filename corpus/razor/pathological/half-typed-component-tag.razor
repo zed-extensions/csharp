@@ -1,0 +1,12 @@
+@page "/new-component"
+
+<h1>Create</h1>
+
+<NewComponent
+<NestedPicker @bind-Value="Model.Value">
+    <span>inner</span>
+</NestedPicker>
+
+<ValidAfter />
+
+<p>Content after the half-typed tags.</p>
