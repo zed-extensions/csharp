@@ -1,0 +1,15 @@
+@page "/orders"
+
+<OrderCard Order="@Model.CurrentOrder" Highlight="true" />
+<OrderCard Order="@Model.PreviousOrder">
+    <CardHeader>Previous order</CardHeader>
+</OrderCard>
+
+@code {
+    private Dictionary<string, object> extra = new()
+    {
+        ["data-testid"] = "order-card"
+    };
+}
+
+<OrderCard Order="@Model.DraftOrder" Extra="@extra" />

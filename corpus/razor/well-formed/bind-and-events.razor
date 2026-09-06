@@ -1,0 +1,28 @@
+@page "/settings"
+@using System.ComponentModel.DataAnnotations
+
+<h1>Settings</h1>
+
+<input @bind="Enabled" />
+<input @bind="Model.Quantity" @bind:after="SaveQuantity" />
+<input type="checkbox" @bind="Model.Accepted" />
+<select @bind="Region">
+    <option value="eu">Europe</option>
+    <option value="us">United States</option>
+</select>
+
+<button @onclick="() => Toggle(Enabled)">Toggle</button>
+<button @onclick="@(e => Save(e))">Save</button>
+
+@code {
+    private bool Enabled { get; set; }
+    private string Region { get; set; } = "eu";
+
+    private void Toggle(bool value)
+    {
+        Enabled = !value;
+    }
+
+    private Task Save(System.EventArgs e) => Task.CompletedTask;
+    private Task SaveQuantity() => Task.CompletedTask;
+}

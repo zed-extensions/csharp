@@ -1,0 +1,17 @@
+@page "/notes"
+@model NotesModel
+
+@* This page shows archived notes *@
+@* Multi-line comment
+   spanning several lines
+   @inject Nothing Here *@
+<div class="notes">
+    @foreach (var note in Model.Notes)
+    {
+        @* Render the note title and body *@
+        <article>
+            <h3>@note.Title</h3>
+            <p>@note.Body</p>
+        </article>
+    }
+</div>

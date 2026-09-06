@@ -1,0 +1,14 @@
+@page "/mixed-collapse"
+
+<div>
+@if (Model.Ready)
+{
+    <ul>
+    @foreach (var item in Model.Items)
+    {
+        <li>@item
+    </ul>
+</div>
+<span>after the collapse</span>
+@{
+<p>paragraph in open block</p>

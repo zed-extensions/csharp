@@ -1,0 +1,13 @@
+@page "/cart"
+@model CartModel
+
+<p>Subtotal: @(Model.Subtotal.ToString("C"))</p>
+<p>Tax: @(Model.Subtotal * 0.08m)</p>
+<p>Total: @(Model.Subtotal + Model.Subtotal * 0.08m)</p>
+<p>Items: @(Model.Items?.Count ?? 0)</p>
+
+@{
+    var label = Model.Items.Count == 1 ? "item" : "items";
+}
+
+<span>@(Model.Items.Count) @label</span>

@@ -1,0 +1,10 @@
+@page "/broken"
+
+<div>
+    @if (Model.Open)
+    {
+        <p>Started but the closing brace never arrives
+
+        <span>Nested content after the broken block</span>
+    </div>
+<p>This paragraph follows the unterminated block and must parse as an element.</p>

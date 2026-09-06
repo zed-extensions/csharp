@@ -1,0 +1,21 @@
+@page "/dashboard"
+@model DashboardModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    @await Html.PartialAsync("_Summary", Model)
+</div>
+
+<div class="row">
+    @await Component.InvokeAsync("Stats")
+</div>
+
+@section Scripts {
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/dashboard.css" />
+}

@@ -1,0 +1,35 @@
+@page "/layout-demo"
+
+<h1>Page content</h1>
+
+@{
+    Layout = "_ColumnLayout";
+    var columns = new[] { "alpha", "beta", "gamma" };
+}
+
+<div class="columns">
+    @for (var i = 0; i < columns.Length; i++)
+    {
+        <section class="col">
+            @columns[i]
+        </section>
+    }
+</div>
+
+@while (false)
+{
+    <span>never</span>
+}
+
+@try
+{
+    <span>@Model.Risky</span>
+}
+catch (InvalidOperationException ex)
+{
+    <span class="error">@ex.Message</span>
+}
+finally
+{
+    <span>done</span>
+}

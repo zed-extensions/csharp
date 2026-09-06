@@ -1,0 +1,24 @@
+@page "/counter"
+@using System.ComponentModel.DataAnnotations
+@inject CounterState State
+
+<h3>Counter</h3>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+
+@code {
+    private int currentCount = 0;
+
+    [Parameter]
+    public int StartFrom { get; set; }
+
+    protected override void OnInitialized()
+    {
+        currentCount = StartFrom;
+    }
+
+    private void IncrementCount()
+    {
+        currentCount += State.Step;
+    }
+}

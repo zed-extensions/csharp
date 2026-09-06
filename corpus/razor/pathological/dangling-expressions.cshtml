@@ -1,0 +1,12 @@
+@page "/open-expression"
+
+<p>The value is @(Model.Value and the sentence keeps going.</p>
+<p>@Model.Unterminated</p>
+<p>Text after the dangling expressions.</p>
+
+@{
+    var a = 1;
+<p>Paragraph inside an open code block.</p>
+}
+
+<p>Final paragraph.</p>
