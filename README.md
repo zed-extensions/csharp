@@ -1,6 +1,6 @@
 # Zed C#
 
-A [C#](https://learn.microsoft.com/en-us/dotnet/csharp/) extension for [Zed](https://zed.dev).
+A [C#](https://learn.microsoft.com/en-us/dotnet/csharp/) extension for [Zed](https://zed.dev), with syntax highlighting for Razor (`.razor`, `.cshtml`).
 
 ## Development
 
