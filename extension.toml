@@ -29,3 +29,11 @@ commit = "485f0bae0274ac9114797fc10db6f7034e4086e3"
 repository = "https://github.com/tree-sitter-grammars/tree-sitter-xml"
 commit = "863dbc381f44f6c136a399e684383b977bb2beaa"
 path = "xml"
+
+[grammars.razor]
+repository = "https://github.com/Meeksoft/tree-sitter-razor"
+commit = "97ce5a575798a7737b53a2bf2745ab8bd73c792d"
+
+[grammars.html_razor]
+repository = "https://github.com/Meeksoft/tree-sitter-html"
+commit = "bb3ca3e7b0bb79079030fe9af9c1175bcd099839"
