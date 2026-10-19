@@ -241,6 +241,15 @@
 (attribute
   name: (identifier) @attribute)
 
+; Property access (x.Prop)
+(member_access_expression
+  name: (identifier) @property)
+
+; Null-conditional property access (x?.Prop)
+(conditional_access_expression
+  (member_binding_expression
+    name: (identifier) @property))
+
 ; Parameters
 (parameter
   name: (identifier) @variable.parameter)
@@ -253,3 +262,9 @@
 (invocation_expression
   (member_access_expression
     name: (identifier) @function))
+
+; Null-conditional method calls (x?.Method(...))
+(invocation_expression
+  function: (conditional_access_expression
+    (member_binding_expression
+      name: (identifier) @function)))
