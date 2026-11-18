@@ -2,7 +2,10 @@ use std::fs;
 
 use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
 
-use crate::language_servers::{nuget::NuGetClient, util};
+use crate::language_servers::{
+    nuget::{remove_source_setting, NuGetClient},
+    util,
+};
 
 const PACKAGE_PREFIX: &str = "roslyn-language-server";
 const SERVER_BINARY: &str = "Microsoft.CodeAnalysis.LanguageServer";
@@ -64,7 +67,9 @@ impl Roslyn {
         };
 
         let package_id = format!("{PACKAGE_PREFIX}.{rid}");
-        let version = self.nuget.get_latest_version(&package_id)?;
+        let version =
+            self.nuget
+                .get_latest_version(worktree, Self::LANGUAGE_SERVER_ID, &package_id)?;
         let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, version);
 
         let already_installed = Self::find_server_path(rid, &version_dir)
@@ -76,8 +81,13 @@ impl Roslyn {
                 &zed::LanguageServerInstallationStatus::Downloading,
             );
 
-            self.nuget
-                .download_and_extract(&package_id, &version, &version_dir)?;
+            self.nuget.download_and_extract(
+                worktree,
+                Self::LANGUAGE_SERVER_ID,
+                &package_id,
+                &version,
+                &version_dir,
+            )?;
 
             util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
         }
@@ -153,17 +163,22 @@ impl Roslyn {
         worktree: &zed::Worktree,
     ) -> Result<Option<zed::serde_json::Value>> {
         let settings = LspSettings::for_worktree(Self::LANGUAGE_SERVER_ID, worktree)
-            .ok()
-            .and_then(|lsp_settings| lsp_settings.settings);
+            .map(|lsp_settings| lsp_settings.settings)?;
 
-        Ok(settings.map(Self::transform_settings_for_roslyn))
+        Ok(Some(Self::transform_settings_for_roslyn(
+            settings.unwrap_or(zed::serde_json::Value::Null),
+        )))
     }
 
-    fn transform_settings_for_roslyn(settings: zed::serde_json::Value) -> zed::serde_json::Value {
+    fn transform_settings_for_roslyn(
+        mut settings: zed::serde_json::Value,
+    ) -> zed::serde_json::Value {
+        remove_source_setting(&mut settings);
         let mut roslyn_config = zed::serde_json::json!({
             // These code lenses show up as "Unknown Command" in Zed and don't do anything when clicked. Disable them by default.
             "csharp|code_lens.dotnet_enable_references_code_lens": false,
             "csharp|code_lens.dotnet_enable_tests_code_lens": false,
+            "csharp|completion.dotnet_show_completion_items_from_unimported_namespaces": true,
             // Enable inlay hints in the language server by default.
             // This way, enabling inlay hints in Zed will cause inlay hints to show up in C# without extra configuration.
             "csharp|inlay_hints.dotnet_enable_inlay_hints_for_parameters": true,
@@ -181,23 +196,55 @@ impl Roslyn {
         let config_map = roslyn_config.as_object_mut().unwrap();
         if let zed::serde_json::Value::Object(settings_map) = settings {
             for (key, value) in settings_map {
-                if key.contains('|') {
-                    // This is already in the language|category format
-                    if let zed::serde_json::Value::Object(nested_settings) = value {
+                match value {
+                    zed::serde_json::Value::Object(nested_settings) if key.contains('|') => {
                         for (nested_key, nested_value) in nested_settings {
-                            // The key already contains the proper format, just add the setting
                             config_map.insert(format!("{key}.{nested_key}"), nested_value);
                         }
                     }
-                }
-                // Handle direct roslyn-format settings (fallback for any other format)
-                else if key.contains('.') {
-                    config_map.insert(key.clone(), value.clone());
+                    value if key.contains('.') => {
+                        config_map.insert(key, value);
+                    }
+                    _ => {}
                 }
             }
         }
 
         roslyn_config
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use zed::serde_json::json;
+
+    #[test]
+    fn supplies_completion_defaults_without_user_settings() {
+        let config = Roslyn::transform_settings_for_roslyn(zed::serde_json::Value::Null);
+        assert_eq!(
+            config["csharp|completion.dotnet_show_completion_items_from_unimported_namespaces"],
+            true
+        );
+    }
+
+    #[test]
+    fn preserves_nested_and_flat_roslyn_options() {
+        let nested = Roslyn::transform_settings_for_roslyn(json!({
+            "csharp|completion": {
+                "dotnet_show_completion_items_from_unimported_namespaces": false
+            },
+            "nuget_source": "https://packages.example.com/v3/index.json"
+        }));
+        let flat = Roslyn::transform_settings_for_roslyn(json!({
+            "csharp|completion.dotnet_show_completion_items_from_unimported_namespaces": false
+        }));
+        assert_eq!(nested, flat);
+        assert_eq!(
+            flat["csharp|completion.dotnet_show_completion_items_from_unimported_namespaces"],
+            false
+        );
+        assert!(nested.get("nuget_source").is_none());
     }
 }
 

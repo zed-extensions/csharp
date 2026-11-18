@@ -15,7 +15,11 @@ language = "CSharp"
 
 [language_servers.roslyn]
 name = "Roslyn"
-language = "CSharp"
+languages = ["CSharp", "Razor"]
+
+[language_servers.roslyn.language_ids]
+CSharp = "csharp"
+Razor = "aspnetcorerazor"
 
 [language_servers.csharp-ls]
 name = "csharp-ls"
@@ -24,6 +28,10 @@ language = "CSharp"
 [grammars.c_sharp]
 repository = "https://github.com/tree-sitter/tree-sitter-c-sharp"
 commit = "485f0bae0274ac9114797fc10db6f7034e4086e3"
+
+[grammars.razor]
+repository = "https://github.com/tris203/tree-sitter-razor"
+commit = "d4664e409caaea12f73c9525484e3cf88b1cf718"
 
 [grammars.xml]
 repository = "https://github.com/tree-sitter-grammars/tree-sitter-xml"
