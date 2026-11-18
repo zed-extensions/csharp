@@ -2,7 +2,10 @@ use std::fs;
 
 use zed_extension_api::{self as zed, settings::LspSettings, LanguageServerId, Result};
 
-use crate::language_servers::{nuget::NuGetClient, util};
+use crate::language_servers::{
+    nuget::{remove_source_setting, NuGetClient},
+    util,
+};
 
 const PACKAGE_ID: &str = "csharp-ls";
 const SERVER_DLL: &str = "CSharpLanguageServer.dll";
@@ -62,7 +65,9 @@ impl CsharpLs {
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
         );
 
-        let version = self.nuget.get_latest_version(PACKAGE_ID)?;
+        let version =
+            self.nuget
+                .get_latest_version(worktree, Self::LANGUAGE_SERVER_ID, PACKAGE_ID)?;
         let version_dir = format!("{}-{}", Self::LANGUAGE_SERVER_ID, version);
 
         if Self::find_dll(&version_dir).is_err() {
@@ -71,8 +76,13 @@ impl CsharpLs {
                 &zed::LanguageServerInstallationStatus::Downloading,
             );
 
-            self.nuget
-                .download_and_extract(PACKAGE_ID, &version, &version_dir)?;
+            self.nuget.download_and_extract(
+                worktree,
+                Self::LANGUAGE_SERVER_ID,
+                PACKAGE_ID,
+                &version,
+                &version_dir,
+            )?;
 
             util::remove_outdated_versions(Self::LANGUAGE_SERVER_ID, &version_dir)?;
         }
@@ -134,6 +144,9 @@ impl CsharpLs {
         let settings = LspSettings::for_worktree(Self::LANGUAGE_SERVER_ID, worktree)
             .ok()
             .and_then(|lsp_settings| lsp_settings.settings);
-        Ok(settings.map(|s| zed::serde_json::json!({ "csharp": s })))
+        Ok(settings.map(|mut s| {
+            remove_source_setting(&mut s);
+            zed::serde_json::json!({ "csharp": s })
+        }))
     }
 }

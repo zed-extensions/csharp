@@ -1,56 +1,91 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::HashMap};
 
-use zed_extension_api::{self as zed, http_client, serde_json, Result};
+use zed_extension_api::{self as zed, http_client, serde_json, settings::LspSettings, Result};
 
-const ROSLYN_NUGET_FEED_INDEX: &str = "https://api.nuget.org/v3/index.json";
+const DEFAULT_NUGET_FEED_INDEX: &str = "https://api.nuget.org/v3/index.json";
 
 pub struct NuGetClient {
-    package_base_address: Option<String>,
+    package_base_addresses: HashMap<String, String>,
+}
+
+fn source_from_settings(settings: Option<&serde_json::Value>) -> Result<String> {
+    let Some(value) = settings.and_then(|settings| settings.get("nuget_source")) else {
+        return Ok(DEFAULT_NUGET_FEED_INDEX.to_string());
+    };
+    let source = value
+        .as_str()
+        .ok_or("nuget_source must be an HTTP(S) NuGet v3 service index URL")?;
+    let address = source
+        .strip_prefix("https://")
+        .or_else(|| source.strip_prefix("http://"))
+        .ok_or("nuget_source must be an HTTP(S) NuGet v3 service index URL")?;
+    if address.split('/').next().unwrap_or_default().is_empty()
+        || source.chars().any(char::is_whitespace)
+    {
+        return Err("nuget_source must be an HTTP(S) NuGet v3 service index URL".to_string());
+    }
+    Ok(source.to_string())
+}
+
+pub fn remove_source_setting(settings: &mut serde_json::Value) {
+    if let Some(object) = settings.as_object_mut() {
+        object.remove("nuget_source");
+    }
 }
 
 impl NuGetClient {
     pub fn new() -> Self {
         NuGetClient {
-            package_base_address: None,
+            package_base_addresses: HashMap::new(),
         }
     }
 
-    fn ensure_package_base_address(&mut self) -> Result<String> {
-        if let Some(ref base) = self.package_base_address {
+    fn source(worktree: &zed::Worktree, language_server_id: &str) -> Result<String> {
+        let settings = LspSettings::for_worktree(language_server_id, worktree)?;
+        source_from_settings(settings.settings.as_ref())
+    }
+
+    fn package_base_address(&mut self, source: &str) -> Result<String> {
+        if let Some(base) = self.package_base_addresses.get(source) {
             return Ok(base.clone());
         }
 
         let response = http_client::fetch(
             &http_client::HttpRequest::builder()
                 .method(http_client::HttpMethod::Get)
-                .url(ROSLYN_NUGET_FEED_INDEX)
+                .url(source)
                 .redirect_policy(http_client::RedirectPolicy::FollowAll)
                 .build()?,
         )?;
 
         let index: serde_json::Value = serde_json::from_slice(&response.body)
-            .map_err(|e| format!("failed to parse NuGet service index: {e}"))?;
+            .map_err(|e| format!("failed to parse NuGet service index from {source}: {e}"))?;
 
         let base_url = index["resources"]
             .as_array()
-            .ok_or("invalid NuGet service index: missing 'resources' array")?
+            .ok_or_else(|| format!("invalid NuGet service index at {source}: missing 'resources'"))?
             .iter()
             .find(|r| {
                 r["@type"]
                     .as_str()
-                    .is_some_and(|t| t == "PackageBaseAddress/3.0.0")
+                    .is_some_and(|t| t.starts_with("PackageBaseAddress/3.0.0"))
             })
             .and_then(|r| r["@id"].as_str())
-            .ok_or("PackageBaseAddress/3.0.0 not found in NuGet service index")?
+            .ok_or_else(|| format!("PackageBaseAddress/3.0.0 not found in {source}"))?
             .trim_end_matches('/')
             .to_string();
 
-        self.package_base_address = Some(base_url.clone());
+        self.package_base_addresses
+            .insert(source.to_string(), base_url.clone());
         Ok(base_url)
     }
 
-    pub fn get_latest_version(&mut self, package_id: &str) -> Result<String> {
-        let base = self.ensure_package_base_address()?;
+    fn latest_version_from_source(
+        &mut self,
+        source: &str,
+        package_id: &str,
+    ) -> Result<NuGetVersion> {
+        let base = self.package_base_address(source)?;
         let lower_id = package_id.to_lowercase();
 
         let url = format!("{base}/{lower_id}/index.json");
@@ -65,36 +100,100 @@ impl NuGetClient {
         let body: serde_json::Value = serde_json::from_slice(&response.body)
             .map_err(|e| format!("failed to parse NuGet version index for '{package_id}': {e}"))?;
 
-        let versions = body["versions"]
+        body["versions"]
             .as_array()
-            .ok_or_else(|| format!("no versions array for NuGet package '{package_id}'"))?;
-
-        versions
+            .ok_or_else(|| format!("no versions array for NuGet package '{package_id}'"))?
             .iter()
             .filter_map(|v| v.as_str())
             .filter_map(NuGetVersion::parse)
             .max()
-            .map(|v| v.raw)
             .ok_or_else(|| format!("no parseable versions found for NuGet package '{package_id}'"))
+    }
+
+    pub fn get_latest_version(
+        &mut self,
+        worktree: &zed::Worktree,
+        language_server_id: &str,
+        package_id: &str,
+    ) -> Result<String> {
+        let source = Self::source(worktree, language_server_id)?;
+        self.latest_version_from_source(&source, package_id)
+            .map(|version| version.raw)
+            .map_err(|error| format!("failed to query NuGet source '{source}': {error}"))
     }
 
     pub fn download_and_extract(
         &mut self,
+        worktree: &zed::Worktree,
+        language_server_id: &str,
         package_id: &str,
         version: &str,
         dest_dir: &str,
     ) -> Result<()> {
-        let base = self.ensure_package_base_address()?;
         let lower_id = package_id.to_lowercase();
         let lower_version = version.to_lowercase();
 
+        let source = Self::source(worktree, language_server_id)?;
+        let base = self.package_base_address(&source)?;
         let url = format!("{base}/{lower_id}/{lower_version}/{lower_id}.{lower_version}.nupkg");
-
-        zed::download_file(&url, dest_dir, zed::DownloadedFileType::Zip)
-            .map_err(|e| format!("failed to download NuGet package '{package_id}' v{version}: {e}"))
+        zed::download_file(&url, dest_dir, zed::DownloadedFileType::Zip).map_err(|error| {
+            format!("failed to download NuGet package '{package_id}' v{version} from '{source}': {error}")
+        })
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults_to_nuget_only_when_source_is_not_configured() {
+        assert_eq!(
+            source_from_settings(None).unwrap(),
+            DEFAULT_NUGET_FEED_INDEX
+        );
+        assert_eq!(
+            source_from_settings(Some(&serde_json::json!({"other": true}))).unwrap(),
+            DEFAULT_NUGET_FEED_INDEX
+        );
+    }
+
+    #[test]
+    fn configured_feed_replaces_nuget_org() {
+        for source in [
+            "https://packages.example.com/v3/index.json",
+            "http://localhost:8080/v3/index.json",
+        ] {
+            let settings = serde_json::json!({"nuget_source": source});
+            assert_eq!(source_from_settings(Some(&settings)).unwrap(), source);
+        }
+    }
+
+    #[test]
+    fn invalid_configuration_errors_instead_of_falling_back() {
+        for value in [
+            serde_json::Value::Null,
+            serde_json::json!(42),
+            serde_json::json!(""),
+            serde_json::json!("file:///packages"),
+            serde_json::json!("https:///index.json"),
+            serde_json::json!("https://packages.example.com/invalid url"),
+        ] {
+            let settings = serde_json::json!({"nuget_source": value});
+            assert!(source_from_settings(Some(&settings)).is_err());
+        }
+    }
+
+    #[test]
+    fn extension_setting_is_not_forwarded_to_language_servers() {
+        let mut settings = serde_json::json!({
+            "nuget_source": "https://packages.example.com/v3/index.json",
+            "other": {"enabled": true}
+        });
+        remove_source_setting(&mut settings);
+        assert_eq!(settings, serde_json::json!({"other": {"enabled": true}}));
+    }
+}
 #[derive(Debug, Clone)]
 struct NuGetVersion {
     major: u64,
