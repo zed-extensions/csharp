@@ -70,7 +70,7 @@ impl Omnisharp {
 
         let (platform, arch) = zed::current_platform();
         let asset_name = format!(
-            "omnisharp-{os}-{arch}-net6.0.{extension}",
+            "omnisharp-{os}-{arch}.{extension}",
             os = match platform {
                 zed::Os::Mac => "osx",
                 zed::Os::Linux => "linux",
