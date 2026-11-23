@@ -3,7 +3,6 @@
 ; The `#not-match?` guards drop PascalCase identifiers in positions where a
 ; type name is as likely as a variable, since evaluating a type produces noise
 ; rather than a value.
-
 (parameter
   name: (identifier) @debug-variable)
 
