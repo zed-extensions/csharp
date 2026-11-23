@@ -1,0 +1,4 @@
+name = "html-razor"
+grammar = "html_razor"
+hidden = true
+block_comment = ["<!-- ", " -->"]

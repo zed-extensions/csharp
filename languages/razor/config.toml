@@ -1,0 +1,7 @@
+name = "Razor"
+code_fence_block_name = "razor"
+grammar = "razor"
+path_suffixes = ["razor", "cshtml"]
+block_comment = ["<!-- ", " -->"]
+word_characters = ["@"]
+tab_size = 4
