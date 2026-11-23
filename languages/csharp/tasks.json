@@ -1,0 +1,9 @@
+[
+  {
+    "label": "dotnet run",
+    "command": "dotnet",
+    "args": ["run"],
+    "cwd": "$ZED_DIRNAME",
+    "tags": ["csharp-main"]
+  }
+]
