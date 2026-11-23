@@ -1,105 +1,98 @@
-//! Debug adapter support, backed by [netcoredbg].
-//!
-//! netcoredbg speaks DAP when started with `--interpreter=vscode`, which is
-//! what Zed's debugger expects. Releases are published as per-platform
-//! archives on GitHub, so the adapter is downloaded on first use in the same
-//! way the language servers are.
-//!
-//! [netcoredbg]: https://github.com/Samsung/netcoredbg
+//! Debugging via [netcoredbg](https://github.com/Samsung/netcoredbg), plus a
+//! `dotnet` locator that turns a `dotnet run` task into a debug session.
 
 use std::fs;
 
 use zed_extension_api::{
-    self as zed, serde_json,
-    serde_json::{json, Value},
-    DebugAdapterBinary, DebugConfig, DebugRequest, DebugScenario, DebugTaskDefinition,
-    LaunchRequest, Result, StartDebuggingRequestArguments, StartDebuggingRequestArgumentsRequest,
-    TaskTemplate,
+    self as zed,
+    serde_json::{self, json, Map, Value},
+    BuildTaskDefinition, BuildTaskDefinitionTemplatePayload, DebugAdapterBinary, DebugConfig,
+    DebugRequest, DebugScenario, DebugTaskDefinition, LaunchRequest, Result,
+    StartDebuggingRequestArguments, StartDebuggingRequestArgumentsRequest, TaskTemplate,
 };
 
 use crate::language_servers::util;
 
-const REPOSITORY: &str = "Samsung/netcoredbg";
-/// Prefix of the directory each downloaded release is extracted into.
-const INSTALL_PREFIX: &str = "netcoredbg";
+pub const LOCATOR_NAME: &str = "dotnet";
 
+#[derive(Default)]
 pub struct Netcoredbg {
-    /// Path to an adapter binary that was already resolved this session.
     cached_binary_path: Option<String>,
 }
 
 impl Netcoredbg {
     pub const ADAPTER_NAME: &'static str = "netcoredbg";
 
-    pub fn new() -> Self {
-        Self {
-            cached_binary_path: None,
-        }
-    }
-
     pub fn dap_binary(
         &mut self,
-        definition: DebugTaskDefinition,
+        task: DebugTaskDefinition,
         user_provided_path: Option<String>,
     ) -> Result<DebugAdapterBinary> {
-        let configuration: Value = serde_json::from_str(&definition.config)
+        let config: Value = serde_json::from_str(&task.config)
             .map_err(|err| format!("invalid debug configuration: {err}"))?;
-
         let command = match user_provided_path {
             Some(path) => path,
-            None => self.resolve_binary_path()?,
+            None => self.binary_path()?,
         };
-
-        let cwd = configuration
-            .get("cwd")
-            .and_then(Value::as_str)
-            .map(str::to_owned);
 
         Ok(DebugAdapterBinary {
             command: Some(command),
             arguments: vec!["--interpreter=vscode".into()],
             envs: Vec::new(),
-            cwd,
+            cwd: config.get("cwd").and_then(Value::as_str).map(Into::into),
             connection: None,
             request_args: StartDebuggingRequestArguments {
-                request: request_kind(&configuration)?,
-                configuration: definition.config,
+                request: request_kind(&config)?,
+                configuration: task.config,
             },
         })
     }
 
-    /// Returns the path to a usable adapter binary, downloading one if needed.
-    fn resolve_binary_path(&mut self) -> Result<String> {
-        if let Some(path) = self.cached_binary_path.as_ref() {
+    fn binary_path(&mut self) -> Result<String> {
+        if let Some(path) = &self.cached_binary_path {
             if fs::metadata(path).is_ok_and(|stat| stat.is_file()) {
                 return Ok(path.clone());
             }
         }
 
+        let (os, arch) = zed::current_platform();
+        let asset_name = match (os, arch) {
+            (zed::Os::Mac, zed::Architecture::Aarch64) => "netcoredbg-osx-arm64.zip",
+            (zed::Os::Linux, zed::Architecture::Aarch64) => "netcoredbg-linux-arm64.tar.gz",
+            (zed::Os::Linux, zed::Architecture::X8664) => "netcoredbg-linux-amd64.tar.gz",
+            (zed::Os::Windows, _) => "netcoredbg-win64.zip",
+            (os, arch) => {
+                return Err(format!(
+                    "netcoredbg has no build for {os:?} {arch:?}; set `dap.netcoredbg.binary`"
+                ))
+            }
+        };
+
         let release = zed::latest_github_release(
-            REPOSITORY,
+            "Samsung/netcoredbg",
             zed::GithubReleaseOptions {
                 require_assets: true,
                 pre_release: false,
             },
         )?;
-
-        let asset_name = asset_name()?;
         let asset = release
             .assets
             .iter()
             .find(|asset| asset.name == asset_name)
             .ok_or_else(|| {
                 format!(
-                    "netcoredbg {} does not ship a '{asset_name}' build; \
-                     set `dap.netcoredbg.binary` to an adapter you built yourself",
+                    "netcoredbg {} has no asset '{asset_name}'; set `dap.netcoredbg.binary`",
                     release.version
                 )
             })?;
 
-        let install_dir = format!("{INSTALL_PREFIX}-{}", release.version);
-        // Both archive kinds extract to a `netcoredbg/` directory.
-        let binary_path = format!("{install_dir}/netcoredbg/{}", binary_name());
+        let version_dir = format!("netcoredbg-{}", release.version);
+        let exe = match os {
+            zed::Os::Windows => "netcoredbg.exe",
+            _ => "netcoredbg",
+        };
+        // Every release archive extracts to a `netcoredbg/` directory.
+        let binary_path = format!("{version_dir}/netcoredbg/{exe}");
 
         if !fs::metadata(&binary_path).is_ok_and(|stat| stat.is_file()) {
             let file_type = if asset_name.ends_with(".zip") {
@@ -107,217 +100,164 @@ impl Netcoredbg {
             } else {
                 zed::DownloadedFileType::GzipTar
             };
-
-            zed::download_file(&asset.download_url, &install_dir, file_type)
+            zed::download_file(&asset.download_url, &version_dir, file_type)
                 .map_err(|err| format!("failed to download netcoredbg: {err}"))?;
-
-            util::remove_outdated_versions(INSTALL_PREFIX, &install_dir)?;
+            util::remove_outdated_versions("netcoredbg", &version_dir)?;
         }
-
         zed::make_file_executable(&binary_path)?;
 
         let binary_path = util::absolute_path(&binary_path)?;
         self.cached_binary_path = Some(binary_path.clone());
-
         Ok(binary_path)
-    }
-
-    /// Translates Zed's adapter-agnostic debug configuration into netcoredbg's
-    /// own launch/attach schema.
-    pub fn config_to_scenario(config: DebugConfig) -> Result<DebugScenario> {
-        let configuration = match config.request {
-            DebugRequest::Launch(launch) => json!({
-                "request": "launch",
-                "program": launch.program,
-                "args": launch.args,
-                "cwd": launch.cwd,
-                "env": launch
-                    .envs
-                    .into_iter()
-                    .map(|(key, value)| (key, Value::String(value)))
-                    .collect::<serde_json::Map<String, Value>>(),
-                "stopAtEntry": config.stop_on_entry.unwrap_or(false),
-                "justMyCode": true,
-            }),
-            DebugRequest::Attach(attach) => json!({
-                "request": "attach",
-                "processId": attach.process_id,
-            }),
-        };
-
-        Ok(DebugScenario {
-            label: config.label,
-            adapter: config.adapter,
-            build: None,
-            config: configuration.to_string(),
-            tcp_connection: None,
-        })
     }
 }
 
-/// Reads the `request` field of a debug configuration.
-pub fn request_kind(configuration: &Value) -> Result<StartDebuggingRequestArgumentsRequest> {
-    match configuration.get("request").and_then(Value::as_str) {
+pub fn request_kind(config: &Value) -> Result<StartDebuggingRequestArgumentsRequest> {
+    match config.get("request").and_then(Value::as_str) {
         Some("launch") => Ok(StartDebuggingRequestArgumentsRequest::Launch),
         Some("attach") => Ok(StartDebuggingRequestArgumentsRequest::Attach),
         Some(other) => Err(format!(
-            "unsupported debug request '{other}'; expected \"launch\" or \"attach\""
+            "unsupported request '{other}'; expected launch or attach"
         )),
-        None => Err("debug configuration is missing a \"request\" field".into()),
+        None => Err("debug configuration is missing \"request\"".into()),
     }
 }
 
-/// Name of the release asset for the current platform.
-fn asset_name() -> Result<String> {
-    let name = match zed::current_platform() {
-        (zed::Os::Mac, zed::Architecture::Aarch64) => "netcoredbg-osx-arm64.zip",
-        (zed::Os::Mac, zed::Architecture::X8664) => "netcoredbg-osx-amd64.zip",
-        (zed::Os::Linux, zed::Architecture::Aarch64) => "netcoredbg-linux-arm64.tar.gz",
-        (zed::Os::Linux, zed::Architecture::X8664) => "netcoredbg-linux-amd64.tar.gz",
-        (zed::Os::Windows, _) => "netcoredbg-win64.zip",
-        (os, architecture) => {
-            return Err(format!(
-                "netcoredbg does not publish a build for {os:?} {architecture:?}"
-            ))
-        }
+pub fn config_to_scenario(config: DebugConfig) -> Result<DebugScenario> {
+    let adapter_config = match config.request {
+        DebugRequest::Launch(launch) => json!({
+            "request": "launch",
+            "program": launch.program,
+            "args": launch.args,
+            "cwd": launch.cwd,
+            "env": launch.envs.into_iter().map(|(k, v)| (k, Value::String(v))).collect::<Map<_, _>>(),
+            "stopAtEntry": config.stop_on_entry.unwrap_or(false),
+            "justMyCode": true,
+        }),
+        DebugRequest::Attach(attach) => json!({
+            "request": "attach",
+            "processId": attach.process_id.ok_or("attaching requires a process id")?,
+        }),
     };
 
-    Ok(name.to_owned())
+    Ok(DebugScenario {
+        label: config.label,
+        adapter: config.adapter,
+        build: None,
+        config: adapter_config.to_string(),
+        tcp_connection: None,
+    })
 }
 
-fn binary_name() -> &'static str {
-    match zed::current_platform().0 {
-        zed::Os::Windows => "netcoredbg.exe",
-        _ => "netcoredbg",
+/// Turns `dotnet run [options] [-- program args]` into a `dotnet build` task.
+pub fn locator_scenario(
+    task: TaskTemplate,
+    label: String,
+    adapter: String,
+) -> Option<DebugScenario> {
+    if task.command != "dotnet" || task.args.first()? != "run" {
+        return None;
     }
+
+    let mut args = task.args[1..].iter().cloned();
+    let mut project = None;
+    let mut build_args = Vec::new();
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--" => break,
+            // `dotnet build` takes the project positionally.
+            "--project" => project = args.next(),
+            // Options `dotnet build` would reject.
+            "--launch-profile" | "-lp" => {
+                args.next();
+            }
+            "--no-launch-profile" | "--no-build" => {}
+            _ => match arg
+                .strip_prefix("--project=")
+                .or(arg.strip_prefix("--project:"))
+            {
+                Some(path) => project = Some(path.into()),
+                None => build_args.push(arg),
+            },
+        }
+    }
+    let program_args: Vec<String> = args.collect();
+
+    let template = TaskTemplate {
+        args: ["build".to_owned()]
+            .into_iter()
+            .chain(project)
+            .chain(build_args)
+            .collect(),
+        ..task
+    };
+
+    Some(DebugScenario {
+        label,
+        adapter,
+        build: Some(BuildTaskDefinition::Template(
+            BuildTaskDefinitionTemplatePayload {
+                locator_name: Some(LOCATOR_NAME.into()),
+                template,
+            },
+        )),
+        // Zed merges this over the request returned by `run_locator`.
+        config: json!({ "args": program_args }).to_string(),
+        tcp_connection: None,
+    })
 }
 
-/// The `dotnet` debug locator.
-///
-/// A `dotnet run` task does not name the assembly Zed needs to hand to the
-/// debugger, so the task is rewritten as a `dotnet build` and the assembly path
-/// is recovered afterwards by asking MSBuild for `TargetPath`.
-pub mod locator {
-    use super::*;
-    use zed_extension_api::{BuildTaskDefinition, BuildTaskDefinitionTemplatePayload};
+/// Finds the assembly the `dotnet build` task produced.
+pub fn run_locator(task: TaskTemplate) -> Result<DebugRequest> {
+    let cwd = task
+        .cwd
+        .ok_or("the dotnet build task has no working directory")?;
 
-    pub const NAME: &str = "dotnet";
+    // Processes started by extensions don't run in the task's directory, so
+    // the project has to be passed as an absolute path.
+    let mut args = task.args;
+    match args.get(1) {
+        Some(project) if !project.starts_with('-') => args[1] = resolve(&cwd, project),
+        _ => args.insert(1, cwd.clone()),
+    }
+    args.extend(["-getProperty:TargetPath".into(), "-nologo".into()]);
 
-    /// Verbs whose `TargetPath` is an assembly that can be launched directly.
-    ///
-    /// `test` is deliberately absent. MSBuild happily reports a `TargetPath`
-    /// for a test project, but that assembly is a library driven by VSTest —
-    /// handing it to the debugger produces a session that exits immediately
-    /// without running a single test. Debugging an individual test needs the
-    /// test host to be started under the debugger instead (see the
-    /// `VSTEST_HOST_DEBUG` task), which a locator cannot arrange. `watch` is
-    /// absent for the same reason: the process the debugger would need is a
-    /// child of `dotnet watch`, not the assembly MSBuild names.
-    const DEBUGGABLE_VERBS: &[&str] = &["run"];
+    let output = zed::process::Command::new("dotnet")
+        .args(args.iter().cloned())
+        .envs(task.env.iter().cloned())
+        .output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
 
-    pub fn create_scenario(
-        build_task: TaskTemplate,
-        resolved_label: String,
-        adapter_name: String,
-    ) -> Option<DebugScenario> {
-        if build_task.command != "dotnet" {
-            return None;
-        }
-
-        let verb = build_task.args.first()?;
-        if !DEBUGGABLE_VERBS.contains(&verb.as_str()) {
-            return None;
-        }
-
-        Some(DebugScenario {
-            label: resolved_label,
-            adapter: adapter_name,
-            build: Some(BuildTaskDefinition::Template(
-                BuildTaskDefinitionTemplatePayload {
-                    locator_name: Some(NAME.to_owned()),
-                    template: to_build_task(build_task),
-                },
-            )),
-            config: String::new(),
-            tcp_connection: None,
-        })
+    if output.status != Some(0) {
+        // MSBuild reports most errors on stdout.
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let reason = if stderr.trim().is_empty() {
+            &stdout
+        } else {
+            stderr.trim()
+        };
+        return Err(format!("`dotnet {}` failed: {reason}", args.join(" ")));
+    }
+    if stdout.is_empty() {
+        return Err(format!(
+            "MSBuild reported no TargetPath for '{}'; for a multi-targeted project, pass `-f <framework>`",
+            args[1]
+        ));
     }
 
-    pub fn run(build_task: TaskTemplate) -> Result<DebugRequest> {
-        let target = msbuild_target(&build_task)
-            .ok_or_else(|| "could not determine which project to debug".to_string())?;
+    Ok(DebugRequest::Launch(LaunchRequest {
+        program: stdout,
+        cwd: Some(cwd),
+        args: Vec::new(),
+        envs: task.env,
+    }))
+}
 
-        let output = zed::process::Command::new("dotnet")
-            .args([
-                "msbuild",
-                target.as_str(),
-                "-getProperty:TargetPath",
-                "-nologo",
-                "-verbosity:quiet",
-            ])
-            .output()?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-
-        if output.status != Some(0) {
-            // MSBuild reports failures such as MSB1003 on stdout and leaves
-            // stderr empty, so both streams have to be considered to produce a
-            // message the user can act on.
-            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
-            let reason = [stderr, stdout]
-                .into_iter()
-                .find(|stream| !stream.is_empty())
-                .unwrap_or_else(|| "no output".to_string());
-
-            return Err(format!(
-                "`dotnet msbuild {target} -getProperty:TargetPath` failed: {reason}"
-            ));
-        }
-
-        if stdout.is_empty() {
-            return Err(format!("MSBuild reported no TargetPath for '{target}'"));
-        }
-
-        Ok(DebugRequest::Launch(LaunchRequest {
-            program: stdout,
-            cwd: build_task.cwd,
-            args: Vec::new(),
-            envs: build_task.env,
-        }))
-    }
-
-    /// Rewrites `dotnet <verb> ...` as `dotnet build ...`, dropping the
-    /// arguments that only make sense for the original verb.
-    fn to_build_task(mut template: TaskTemplate) -> TaskTemplate {
-        let mut args = vec!["build".to_owned()];
-
-        // Everything after `--` is passed to the program being run, not to the
-        // SDK, so it has no meaning for a build.
-        let sdk_args = template
-            .args
-            .iter()
-            .skip(1)
-            .take_while(|arg| arg.as_str() != "--");
-
-        args.extend(sdk_args.cloned());
-        template.args = args;
-        template
-    }
-
-    /// Picks the project or solution to query MSBuild about.
-    fn msbuild_target(build_task: &TaskTemplate) -> Option<String> {
-        let explicit = build_task
-            .args
-            .iter()
-            .find(|arg| is_project_file(arg))
-            .cloned();
-
-        explicit.or_else(|| build_task.cwd.clone())
-    }
-
-    fn is_project_file(arg: &str) -> bool {
-        [".csproj", ".fsproj", ".vbproj"]
-            .iter()
-            .any(|suffix| arg.ends_with(suffix))
+fn resolve(cwd: &str, path: &str) -> String {
+    let is_absolute = path.starts_with(['/', '\\']) || path.get(1..2) == Some(":");
+    if is_absolute {
+        path.to_owned()
+    } else {
+        format!("{cwd}/{path}")
     }
 }

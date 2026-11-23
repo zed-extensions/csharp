@@ -79,7 +79,7 @@ impl zed::Extension for CsharpExtension {
         match adapter_name.as_str() {
             Netcoredbg::ADAPTER_NAME => self
                 .netcoredbg
-                .get_or_insert_with(Netcoredbg::new)
+                .get_or_insert_with(Netcoredbg::default)
                 .dap_binary(config, user_provided_debug_adapter_path),
             adapter_name => Err(format!("unknown debug adapter: {adapter_name}")),
         }
@@ -98,7 +98,7 @@ impl zed::Extension for CsharpExtension {
 
     fn dap_config_to_scenario(&mut self, config: DebugConfig) -> Result<DebugScenario> {
         match config.adapter.as_str() {
-            Netcoredbg::ADAPTER_NAME => Netcoredbg::config_to_scenario(config),
+            Netcoredbg::ADAPTER_NAME => netcoredbg::config_to_scenario(config),
             adapter_name => Err(format!("unknown debug adapter: {adapter_name}")),
         }
     }
@@ -110,11 +110,11 @@ impl zed::Extension for CsharpExtension {
         resolved_label: String,
         debug_adapter_name: String,
     ) -> Option<DebugScenario> {
-        if locator_name != netcoredbg::locator::NAME {
+        if locator_name != netcoredbg::LOCATOR_NAME {
             return None;
         }
 
-        netcoredbg::locator::create_scenario(build_task, resolved_label, debug_adapter_name)
+        netcoredbg::locator_scenario(build_task, resolved_label, debug_adapter_name)
     }
 
     fn run_dap_locator(
@@ -123,7 +123,7 @@ impl zed::Extension for CsharpExtension {
         build_task: TaskTemplate,
     ) -> Result<DebugRequest> {
         match locator_name.as_str() {
-            netcoredbg::locator::NAME => netcoredbg::locator::run(build_task),
+            netcoredbg::LOCATOR_NAME => netcoredbg::run_locator(build_task),
             locator_name => Err(format!("unknown debug locator: {locator_name}")),
         }
     }
