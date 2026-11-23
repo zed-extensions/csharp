@@ -40,24 +40,14 @@ Create `.zed/debug.json` in your project for explicit configurations:
 ]
 ```
 
-Starting a debug session from a `dotnet run` task uses the bundled `dotnet`
-locator: it runs the build first, asks MSBuild for the produced assembly with
-`dotnet msbuild -getProperty:TargetPath`, and launches netcoredbg against it.
-
-### Debugging a single test
-
-The locator deliberately does not handle `dotnet test`: the test assembly is a
-library driven by VSTest, and launching it directly exits without running
-anything. Instead, run the **"dotnet test $ZED_SYMBOL (wait for debugger)"**
-task from the gutter button on any test. The test host prints its process id
-and waits; start an `attach` configuration with that id and breakpoints inside
-the test are hit normally.
+Debugging a `dotnet run` task builds the project, asks MSBuild for the
+assembly it produced, and launches netcoredbg against it. Arguments after `--`
+are passed to the program. Start it from a file in the project's folder.
 
 ## Runnables
 
-Test methods (`[Fact]`, `[Theory]`, `[Test]`, `[TestMethod]`, `[TestCase]`),
-test classes (including xUnit classes, which carry no class-level attribute),
-and `Main` methods get a run button in the gutter.
+`Main` methods and files of top-level statements get a run button in the
+gutter.
 
 ## Development
 
