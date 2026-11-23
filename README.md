@@ -35,7 +35,7 @@ Create `.zed/debug.json` in your project for explicit configurations:
     "label": "Attach to process",
     "adapter": "netcoredbg",
     "request": "attach",
-    "processId": 0
+    "processId": "$ZED_PICK_PID"
   }
 ]
 ```

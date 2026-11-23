@@ -28,7 +28,7 @@ schema_path = "debug_adapter_schemas/netcoredbg.json"
 [debug_locators.dotnet]
 
 # netcoredbg release archives; GitHub asset downloads redirect to
-# objects.githubusercontent.com.
+# release-assets.githubusercontent.com.
 [[capabilities]]
 kind = "download_file"
 host = "github.com"
@@ -36,11 +36,11 @@ path = ["Samsung", "netcoredbg", "releases", "**"]
 
 [[capabilities]]
 kind = "download_file"
-host = "objects.githubusercontent.com"
+host = "release-assets.githubusercontent.com"
 path = ["**"]
 
 # Used by the `dotnet` debug locator to ask MSBuild where the build output
-# landed (`dotnet msbuild -getProperty:TargetPath`).
+# landed (`dotnet build -getProperty:TargetPath`).
 [[capabilities]]
 kind = "process:exec"
 command = "dotnet"
